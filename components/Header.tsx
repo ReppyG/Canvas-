@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { generateText } from '../services/geminiService';
 import { SearchIcon, SparklesIcon, ExclamationTriangleIcon } from './icons/Icons';
-import { Course, Assignment, Settings } from '../types';
+import { Course, Assignment } from '../types';
 import { format, isToday, isTomorrow } from 'date-fns';
 
 interface HeaderProps {
   courses: Course[];
   assignments: Assignment[];
-  settings: Settings | null;
+  connectionStatus: 'live' | 'sample' | 'error';
 }
 
 const answerWithCanvasData = (term: string, assignments: Assignment[]): string | null => {
@@ -45,7 +45,7 @@ const answerWithCanvasData = (term: string, assignments: Assignment[]): string |
     return null; // No specific answer found in local data
 };
 
-const Header: React.FC<HeaderProps> = ({ courses, assignments, settings }) => {
+const Header: React.FC<HeaderProps> = ({ courses, assignments, connectionStatus }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [searchResult, setSearchResult] = useState('');
@@ -73,10 +73,10 @@ const Header: React.FC<HeaderProps> = ({ courses, assignments, settings }) => {
 
     return (
         <div className="flex-shrink-0">
-            {settings?.sampleDataMode && (
+            {connectionStatus === 'sample' && (
                 <div className="bg-yellow-600/50 text-yellow-200 text-center text-xs py-1.5 px-4 border-b border-yellow-700/50 flex items-center justify-center">
                     <ExclamationTriangleIcon className="w-4 h-4 inline-block mr-2 flex-shrink-0" />
-                    <span>You are viewing sample data. Live connection failed due to a browser security restriction.</span>
+                    <span>Viewing sample data. Live connection failed due to browser security (CORS).</span>
                 </div>
             )}
             <header className="h-20 bg-gray-900 border-b border-gray-800 flex items-center px-8">

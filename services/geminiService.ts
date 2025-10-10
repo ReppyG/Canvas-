@@ -1,23 +1,11 @@
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
-// IMPORTANT: This is a temporary fix for local development.
-// The browser does not have access to `process.env`.
-// In a real, deployed application, this key should be handled by a secure backend proxy,
-// not exposed in the frontend code.
-const API_KEY = "YOUR_GEMINI_API_KEY_HERE"; // <-- REPLACE THIS WITH YOUR ACTUAL KEY
-
-if (!API_KEY || API_KEY === "YOUR_GEMINI_API_KEY_HERE") {
-  // In a real app, you might want to show an error to the user or handle this differently.
-  // For this example, we'll log an error.
-  console.error("Gemini API key not found. Please replace the placeholder in services/geminiService.ts.");
-}
-
-// Initialize with a placeholder if the key is missing to avoid crashing.
-const ai = new GoogleGenAI({ apiKey: API_KEY || "invalid-key" });
+// Fix: Per @google/genai guidelines, initialize the client with the API key from environment variables.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const model = "gemini-2.5-flash";
 
 export const generateText = async (prompt: string): Promise<string> => {
-  if (!API_KEY || API_KEY === "YOUR_GEMINI_API_KEY_HERE") return "API Key not configured. Please add it in services/geminiService.ts";
+  // Fix: Removed check for hardcoded API key, as it's now handled by environment variables.
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model,
@@ -26,7 +14,8 @@ export const generateText = async (prompt: string): Promise<string> => {
     return response.text;
   } catch (error) {
     console.error("Error generating text:", error);
-    return "An error occurred while communicating with the AI. Check if your API key is valid.";
+    // Fix: Per @google/genai guidelines, provide a generic error message that doesn't reference API keys.
+    return "An error occurred while communicating with the AI. Please try again later.";
   }
 };
 

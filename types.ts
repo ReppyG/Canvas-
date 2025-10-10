@@ -27,7 +27,6 @@ export enum Page {
   Calendar = 'Calendar',
   Summarizer = 'Summarizer',
   Notes = 'Notes',
-  Settings = 'Settings',
 }
 
 export interface AiTutorMessage {
@@ -35,8 +34,9 @@ export interface AiTutorMessage {
   text: string;
 }
 
+// Fix: Add missing Settings interface export.
 export interface Settings {
-    canvasUrl: string;
-    apiToken: string;
-    sampleDataMode?: boolean;
+  canvasUrl: string;
+  apiToken: string;
+  sampleDataMode: boolean;
 }

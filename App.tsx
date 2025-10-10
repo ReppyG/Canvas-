@@ -5,17 +5,14 @@ import CoursesView from './components/CoursesView';
 import CalendarView from './components/CalendarView';
 import SummarizerView from './components/SummarizerView';
 import NotesView from './components/NotesView';
-import SettingsView from './components/SettingsView';
 import Header from './components/Header';
-import { Page, Settings } from './types';
+import { Page } from './types';
 import { useCanvasData } from './hooks/useCanvasData';
-import { useSettings } from './hooks/useSettings';
-import { BellIcon, XIcon, ExclamationTriangleIcon } from './components/icons/Icons';
+import { BellIcon, XIcon } from './components/icons/Icons';
 
 const App: React.FC = () => {
-  const { settings, saveSettings, clearSettings, isConfigured, enableSampleDataMode } = useSettings();
   const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
-  const { courses, assignments, calendarEvents, loading, error, newAssignments } = useCanvasData(settings);
+  const { courses, assignments, calendarEvents, loading, error, newAssignments, connectionStatus } = useCanvasData();
 
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
@@ -33,12 +30,6 @@ const App: React.FC = () => {
   }, [newAssignments]);
 
   const renderPage = () => {
-    // If not configured, force the settings page.
-    if (!isConfigured && currentPage !== Page.Settings) {
-      setCurrentPage(Page.Settings);
-      return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} onEnableSampleDataMode={enableSampleDataMode} onNavigate={setCurrentPage} />;
-    }
-
     switch (currentPage) {
       case Page.Dashboard:
         return <Dashboard assignments={assignments} calendarEvents={calendarEvents} />;
@@ -50,8 +41,6 @@ const App: React.FC = () => {
         return <SummarizerView />;
       case Page.Notes:
         return <NotesView />;
-      case Page.Settings:
-        return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} onEnableSampleDataMode={enableSampleDataMode} onNavigate={setCurrentPage} />;
       default:
         return <Dashboard assignments={assignments} calendarEvents={calendarEvents} />;
     }
@@ -68,9 +57,9 @@ const App: React.FC = () => {
           animation: slide-in-right 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
         }
       `}</style>
-      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} isConfigured={isConfigured}/>
+      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header courses={courses} assignments={assignments} settings={settings} />
+        <Header courses={courses} assignments={assignments} connectionStatus={connectionStatus} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-6 md:p-8">
           {loading ? (
              <div className="flex items-center justify-center h-full">
@@ -78,10 +67,10 @@ const App: React.FC = () => {
              </div>
           ) : error ? (
             <div className="flex items-center justify-center h-full">
-              <div className="bg-red-900/50 border border-red-700 text-red-300 p-6 rounded-lg text-center">
+              <div className="bg-red-900/50 border border-red-700 text-red-300 p-6 rounded-lg text-center max-w-lg">
                 <h3 className="font-bold text-lg mb-2">Connection Error</h3>
                 <p className="text-sm">{error}</p>
-                <p className="text-sm mt-2">Please check your credentials on the Settings page.</p>
+                <p className="text-sm mt-2">This might be due to incorrect API credentials configured in your Netlify settings. Please check them and redeploy.</p>
               </div>
             </div>
           ) : (

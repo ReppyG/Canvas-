@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Course, Assignment, CalendarEvent, Settings } from '../types';
-import * as mockService from '../services/canvasMockService';
+import { Course, Assignment, CalendarEvent } from '../types';
 import * as apiService from '../services/canvasApiService';
 
 const CANVAS_ASSIGNMENT_IDS_KEY = 'canvasAiAssistantAssignmentIds';
 
-export const useCanvasData = (settings: Settings | null) => {
+export const useCanvasData = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [newAssignments, setNewAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'live' | 'error'>('live');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,35 +19,13 @@ export const useCanvasData = (settings: Settings | null) => {
         setLoading(true);
         setError(null);
         setNewAssignments([]);
-        let coursesData: Course[], assignmentsData: Assignment[];
+        setConnectionStatus('live'); 
 
-        // If in sample mode OR not configured, use mock service.
-        if (settings?.sampleDataMode || !settings?.canvasUrl || !settings?.apiToken) {
-            [coursesData, assignmentsData] = await Promise.all([
-                mockService.getCourses(),
-                mockService.getAssignments(),
-            ]);
-        } else {
-            // Otherwise, attempt to fetch live data.
-            try {
-                [coursesData, assignmentsData] = await Promise.all([
-                    apiService.getCourses(settings),
-                    apiService.getAssignments(settings),
-                ]);
-            } catch (err) {
-                 // The only errors here should be critical ones now.
-                 // The user would have been warned about CORS on the settings page.
-                 console.error("Critical error fetching canvas data", err);
-                 setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-                 setCourses([]);
-                 setAssignments([]);
-                 setCalendarEvents([]);
-                 setLoading(false); // Make sure to stop loading on error
-                 return; // Exit early
-            }
-        }
-
-        // Check for new assignments
+        const [coursesData, assignmentsData] = await Promise.all([
+            apiService.getCourses(),
+            apiService.getAssignments(),
+        ]);
+        
         const newAssignmentIds = new Set(assignmentsData.map(a => a.id));
         const storedIdsRaw = localStorage.getItem(CANVAS_ASSIGNMENT_IDS_KEY);
         
@@ -58,12 +36,10 @@ export const useCanvasData = (settings: Settings | null) => {
                 setNewAssignments(newlyAdded);
             }
         }
-        // Store current assignment IDs for next comparison, only if there are assignments to prevent overwriting with empty on error.
         if (assignmentsData.length > 0) {
            localStorage.setItem(CANVAS_ASSIGNMENT_IDS_KEY, JSON.stringify(Array.from(newAssignmentIds)));
         }
         
-        // Derive calendar events from assignments
         const eventsData: CalendarEvent[] = assignmentsData.map(a => ({
           id: a.id,
           title: a.title,
@@ -76,19 +52,17 @@ export const useCanvasData = (settings: Settings | null) => {
         setAssignments(assignmentsData);
         setCalendarEvents(eventsData);
       } catch (err) {
-        // This catch block handles any unexpected errors during data processing
-        console.error("Critical error processing canvas data", err);
-        setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-        setCourses([]);
-        setAssignments([]);
-        setCalendarEvents([]);
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+        console.error("Critical error fetching canvas data via proxy", err);
+        setError(errorMessage);
+        setConnectionStatus('error');
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [settings]);
+  }, []);
 
-  return { courses, assignments, calendarEvents, loading, error, newAssignments };
+  return { courses, assignments, calendarEvents, loading, error, newAssignments, connectionStatus };
 };

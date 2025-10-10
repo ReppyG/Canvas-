@@ -1,31 +1,27 @@
-import { Settings, Course, Assignment } from '../types';
+import { Course, Assignment } from '../types';
 
-const fetchCanvasAPI = async (endpoint: string, settings: Settings) => {
-    const url = `${settings.canvasUrl}/api/v1/${endpoint}`;
-    const headers = {
-        'Authorization': `Bearer ${settings.apiToken}`
-    };
-
-    const response = await fetch(url, { headers });
+const fetchFromProxy = async (endpoint: string) => {
+    // This URL points to our Netlify Function.
+    const url = `/.netlify/functions/canvas-proxy?endpoint=${endpoint}`;
+    
+    // No headers needed here, the proxy handles authentication.
+    const response = await fetch(url);
 
     if (!response.ok) {
-        if (response.status === 401) {
-            throw new Error('Unauthorized: Invalid API Token. Please check your settings.');
-        }
-        throw new Error(`Failed to fetch from Canvas API: ${response.status} ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to fetch from proxy: ${response.statusText}`);
     }
     return response.json();
 };
 
-export const testConnection = async (settings: Settings): Promise<boolean> => {
-    // A lightweight endpoint to verify credentials and connectivity.
-    await fetchCanvasAPI('users/self/profile', settings);
+export const testConnection = async (): Promise<boolean> => {
+    // A lightweight endpoint to verify credentials and connectivity via the proxy.
+    await fetchFromProxy('users/self/profile');
     return true;
 };
 
-export const getCourses = async (settings: Settings): Promise<Course[]> => {
-    // Fetch only active courses
-    const rawCourses = await fetchCanvasAPI('courses?enrollment_state=active&per_page=50', settings);
+export const getCourses = async (): Promise<Course[]> => {
+    const rawCourses = await fetchFromProxy('courses?enrollment_state=active&per_page=50');
     return rawCourses.map((course: any) => ({
         id: course.id,
         name: course.name,
@@ -33,27 +29,25 @@ export const getCourses = async (settings: Settings): Promise<Course[]> => {
     }));
 };
 
-export const getAssignments = async (settings: Settings): Promise<Assignment[]> => {
-    // Fetch assignments for all active courses
-    const courses = await getCourses(settings);
+export const getAssignments = async (): Promise<Assignment[]> => {
+    const courses = await getCourses();
     const courseIds = courses.map(c => c.id);
 
-    // Get assignments for all courses in parallel
     const assignmentPromises = courseIds.map(courseId => 
-        fetchCanvasAPI(`courses/${courseId}/assignments?per_page=100`, settings)
+        fetchFromProxy(`courses/${courseId}/assignments?per_page=100`)
     );
 
     const results = await Promise.all(assignmentPromises);
-    const allAssignments = results.flat(); // Flatten the array of arrays
+    const allAssignments = results.flat(); 
 
     return allAssignments
-      .filter((assignment: any) => assignment.due_at) // Filter out assignments with no due date
+      .filter((assignment: any) => assignment.due_at)
       .map((assignment: any) => ({
         id: assignment.id,
         title: assignment.name,
         courseId: assignment.course_id,
         dueDate: new Date(assignment.due_at),
-        description: assignment.description || 'No description provided.', // Handle null descriptions
+        description: assignment.description || 'No description provided.',
         points: assignment.points_possible || 0,
     }));
 };

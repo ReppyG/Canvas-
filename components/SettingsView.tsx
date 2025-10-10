@@ -53,7 +53,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
         setTestStatus('testing');
         setTestMessage('');
         try {
-            await testConnection({ canvasUrl: getFormattedUrl(), apiToken: apiToken.trim(), sampleDataMode: false });
+            // Fix: The `testConnection` function expects 0 arguments. The proxy handles credentials.
+            await testConnection();
             setTestStatus('success');
             setTestMessage('Successfully connected to the Canvas API!');
         } catch (err) {

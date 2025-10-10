@@ -1,20 +1,19 @@
 import React from 'react';
 import { Page } from '../types';
-import { HomeIcon, BookOpenIcon, CalendarIcon, DocumentTextIcon, SparklesIcon, NoteIcon, SettingsIcon } from './icons/Icons';
+import { HomeIcon, BookOpenIcon, CalendarIcon, DocumentTextIcon, SparklesIcon, NoteIcon } from './icons/Icons';
 
 interface SidebarProps {
   currentPage: Page;
   setCurrentPage: (page: Page) => void;
-  isConfigured: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isConfigured }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage }) => {
   const navItems = [
-    { page: Page.Dashboard, icon: <HomeIcon />, label: 'Dashboard', requiresConfig: true },
-    { page: Page.Courses, icon: <BookOpenIcon />, label: 'Courses', requiresConfig: true },
-    { page: Page.Calendar, icon: <CalendarIcon />, label: 'Calendar', requiresConfig: true },
-    { page: Page.Summarizer, icon: <DocumentTextIcon />, label: 'Summarizer', requiresConfig: false },
-    { page: Page.Notes, icon: <NoteIcon />, label: 'Notes', requiresConfig: false },
+    { page: Page.Dashboard, icon: <HomeIcon />, label: 'Dashboard' },
+    { page: Page.Courses, icon: <BookOpenIcon />, label: 'Courses' },
+    { page: Page.Calendar, icon: <CalendarIcon />, label: 'Calendar' },
+    { page: Page.Summarizer, icon: <DocumentTextIcon />, label: 'Summarizer' },
+    { page: Page.Notes, icon: <NoteIcon />, label: 'Notes' },
   ];
 
   return (
@@ -25,18 +24,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isConfig
       </div>
       <nav className="flex-1 px-4 py-6">
         <ul>
-          {navItems.map((item) => {
-            const isDisabled = item.requiresConfig && !isConfigured;
-            return (
+          {navItems.map((item) => (
               <li key={item.page}>
                 <button
                   onClick={() => setCurrentPage(item.page)}
-                  disabled={isDisabled}
                   className={`flex items-center w-full px-4 py-3 my-1 text-left text-sm font-medium rounded-lg transition-colors duration-200 ${
                     currentPage === item.page
                       ? 'bg-blue-500 text-white'
-                      : isDisabled
-                      ? 'text-gray-600 cursor-not-allowed'
                       : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                   }`}
                 >
@@ -44,20 +38,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isConfig
                   {item.label}
                 </button>
               </li>
-            );
-          })}
+            ))}
         </ul>
       </nav>
-      <div className="p-4 border-t border-gray-800">
-          <button onClick={() => setCurrentPage(Page.Settings)} className={`flex items-center w-full px-4 py-3 text-left text-sm font-medium rounded-lg transition-colors duration-200 ${
-              currentPage === Page.Settings
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-          }`}>
-              <SettingsIcon className="w-5 h-5 mr-3"/>
-              Settings
-          </button>
-      </div>
     </div>
   );
 };
