@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import CoursesView from './components/CoursesView';
@@ -10,27 +10,38 @@ import Header from './components/Header';
 import { Page, Settings } from './types';
 import { useCanvasData } from './hooks/useCanvasData';
 import { useSettings } from './hooks/useSettings';
-import { BellIcon, XIcon } from './components/icons/Icons';
+import { BellIcon, XIcon, ExclamationTriangleIcon } from './components/icons/Icons';
 
 const App: React.FC = () => {
   const { settings, saveSettings, clearSettings, isConfigured } = useSettings();
   const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
-  const { courses, assignments, calendarEvents, loading, error, newAssignments } = useCanvasData(settings);
+  const { courses, assignments, calendarEvents, loading, error, newAssignments, connectionWarning } = useCanvasData(settings);
+
   const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [notificationType, setNotificationType] = useState<'info' | 'warning'>('info');
 
   useEffect(() => {
     if (newAssignments.length > 0) {
+      setNotificationTitle('New Assignments');
+      const message = newAssignments.length === 1
+          ? `New assignment posted: "${newAssignments[0].title}"`
+          : `${newAssignments.length} new assignments have been posted. Check your courses.`;
+      setNotificationMessage(message);
+      setNotificationType('info');
       setShowNotification(true);
     }
   }, [newAssignments]);
-  
-  const notificationMessage = useMemo(() => {
-      if (newAssignments.length === 0) return '';
-      if (newAssignments.length === 1) {
-          return `New assignment posted: "${newAssignments[0].title}"`;
-      }
-      return `${newAssignments.length} new assignments have been posted. Check your courses.`;
-  }, [newAssignments]);
+
+  useEffect(() => {
+    if (connectionWarning) {
+        setNotificationTitle('Connection Issue');
+        setNotificationMessage(connectionWarning);
+        setNotificationType('warning');
+        setShowNotification(true);
+    }
+  }, [connectionWarning]);
 
 
   const renderPage = () => {
@@ -93,14 +104,18 @@ const App: React.FC = () => {
 
       {/* Notification Popup */}
       {showNotification && (
-          <div className="fixed top-5 right-5 w-full max-w-sm bg-gray-800 border border-blue-700 rounded-lg shadow-2xl z-50 animate-slide-in-right">
+          <div className={`fixed top-5 right-5 w-full max-w-sm bg-gray-800 border ${notificationType === 'info' ? 'border-blue-700' : 'border-yellow-700'} rounded-lg shadow-2xl z-50 animate-slide-in-right`}>
               <div className="p-4">
                   <div className="flex items-start">
                       <div className="flex-shrink-0">
-                         <BellIcon className="h-6 w-6 text-blue-400" />
+                         {notificationType === 'info' ? (
+                            <BellIcon className="h-6 w-6 text-blue-400" />
+                         ) : (
+                            <ExclamationTriangleIcon className="h-6 w-6 text-yellow-400" />
+                         )}
                       </div>
                       <div className="ml-3 w-0 flex-1 pt-0.5">
-                          <p className="text-sm font-medium text-white">New Assignments</p>
+                          <p className="text-sm font-medium text-white">{notificationTitle}</p>
                           <p className="mt-1 text-sm text-gray-300">{notificationMessage}</p>
                       </div>
                       <div className="ml-4 flex-shrink-0 flex">

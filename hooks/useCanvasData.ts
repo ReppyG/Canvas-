@@ -12,6 +12,7 @@ export const useCanvasData = (settings: Settings | null) => {
   const [newAssignments, setNewAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [connectionWarning, setConnectionWarning] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,16 +20,33 @@ export const useCanvasData = (settings: Settings | null) => {
         setLoading(true);
         setError(null);
         setNewAssignments([]);
+        setConnectionWarning(null);
         let coursesData: Course[], assignmentsData: Assignment[];
 
         if (settings?.canvasUrl && settings?.apiToken) {
-            // Fetch from live API
-            [coursesData, assignmentsData] = await Promise.all([
-                apiService.getCourses(settings),
-                apiService.getAssignments(settings),
-            ]);
+            try {
+                // Fetch from live API
+                [coursesData, assignmentsData] = await Promise.all([
+                    apiService.getCourses(settings),
+                    apiService.getAssignments(settings),
+                ]);
+            } catch (err) {
+                 console.error("Failed to fetch live canvas data", err);
+                 // Graceful fallback for CORS errors
+                 if (err instanceof TypeError && err.message === 'Failed to fetch') {
+                    setConnectionWarning('Live connection failed due to a browser security restriction (CORS). Loading sample data instead.');
+                    // Fallback to mock data
+                    [coursesData, assignmentsData] = await Promise.all([
+                        mockService.getCourses(),
+                        mockService.getAssignments(),
+                    ]);
+                 } else {
+                    // Handle other errors (e.g., 401 Unauthorized) as blocking errors
+                    throw err;
+                 }
+            }
         } else {
-            // Fetch from mock service
+            // Fetch from mock service if not configured
             [coursesData, assignmentsData] = await Promise.all([
                 mockService.getCourses(),
                 mockService.getAssignments(),
@@ -64,12 +82,9 @@ export const useCanvasData = (settings: Settings | null) => {
         setAssignments(assignmentsData);
         setCalendarEvents(eventsData);
       } catch (err) {
-        console.error("Failed to fetch canvas data", err);
-        if (err instanceof TypeError && err.message === 'Failed to fetch') {
-            setError('Could not connect to the Canvas API. This is likely a browser security restriction (CORS). A secure backend proxy is required for this application to make live API calls.');
-        } else {
-            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-        }
+        // This catch block now only handles critical, blocking errors
+        console.error("Critical error fetching canvas data", err);
+        setError(err instanceof Error ? err.message : 'An unknown error occurred.');
         // Clear data on error
         setCourses([]);
         setAssignments([]);
@@ -82,5 +97,5 @@ export const useCanvasData = (settings: Settings | null) => {
     fetchData();
   }, [settings]);
 
-  return { courses, assignments, calendarEvents, loading, error, newAssignments };
+  return { courses, assignments, calendarEvents, loading, error, newAssignments, connectionWarning };
 };
