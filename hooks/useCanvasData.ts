@@ -6,19 +6,28 @@ import * as mockService from '../services/canvasMockService';
 const SETTINGS_KEY = 'canvasAiAssistantSettings';
 const CANVAS_ASSIGNMENT_IDS_KEY = 'canvasAiAssistantAssignmentIds';
 
-export const useCanvasData = () => {
+export const useCanvasData = (enabled: boolean) => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [newAssignments, setNewAssignments] = useState<Assignment[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'live' | 'sample' | 'error'>('live');
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      setCourses([]);
+      setAssignments([]);
+      setCalendarEvents([]);
+      setNewAssignments([]);
+      setError(null);
+      return;
+    }
+
     const fetchData = async () => {
       try {
-        setLoading(true);
         setError(null);
         setNewAssignments([]);
         
@@ -72,9 +81,10 @@ export const useCanvasData = () => {
         setLoading(false);
       }
     };
-
+    
+    setLoading(true);
     fetchData();
-  }, []);
+  }, [enabled]);
 
   return { courses, assignments, calendarEvents, loading, error, newAssignments, connectionStatus };
 };

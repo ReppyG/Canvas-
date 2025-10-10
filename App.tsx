@@ -16,18 +16,10 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
   const { settings, saveSettings, clearSettings, isConfigured, enableSampleDataMode } = useSettings();
   
-  // Conditionally call useCanvasData only when settings are ready
-  const canvasData = (isConfigured || settings?.sampleDataMode) ? useCanvasData() : {
-    courses: [],
-    assignments: [],
-    calendarEvents: [],
-    loading: true,
-    error: null,
-    newAssignments: [],
-    connectionStatus: 'live' as const
-  };
+  // Call useCanvasData unconditionally, but control its execution with a boolean flag.
+  const shouldFetchData = isConfigured || !!settings?.sampleDataMode;
+  const { courses, assignments, calendarEvents, loading, error, newAssignments, connectionStatus } = useCanvasData(shouldFetchData);
 
-  const { courses, assignments, calendarEvents, loading, error, newAssignments, connectionStatus } = canvasData;
 
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
