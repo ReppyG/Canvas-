@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings } from '../types';
+import { testConnection } from '../services/canvasApiService';
 
 interface SettingsViewProps {
     settings: Settings | null;
@@ -7,10 +8,14 @@ interface SettingsViewProps {
     onClear: () => void;
 }
 
+type TestStatus = 'idle' | 'testing' | 'success' | 'error';
+
 const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear }) => {
     const [canvasUrl, setCanvasUrl] = useState('');
     const [apiToken, setApiToken] = useState('');
     const [isSaved, setIsSaved] = useState(false);
+    const [testStatus, setTestStatus] = useState<TestStatus>('idle');
+    const [testMessage, setTestMessage] = useState('');
 
     useEffect(() => {
         if (settings) {
@@ -18,15 +23,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear }
             setApiToken(settings.apiToken);
         }
     }, [settings]);
-
-    const handleSave = (e: React.FormEvent) => {
-        e.preventDefault();
-        // Basic URL validation
+    
+    const getFormattedUrl = () => {
         let formattedUrl = canvasUrl.trim();
         if (formattedUrl.endsWith('/')) {
             formattedUrl = formattedUrl.slice(0, -1);
         }
-        onSave({ canvasUrl: formattedUrl, apiToken: apiToken.trim() });
+        return formattedUrl;
+    }
+
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave({ canvasUrl: getFormattedUrl(), apiToken: apiToken.trim() });
         setIsSaved(true);
         setTimeout(() => setIsSaved(false), 3000);
     };
@@ -36,6 +44,25 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear }
         setApiToken('');
         onClear();
     }
+
+    const handleTestConnection = async () => {
+        setTestStatus('testing');
+        setTestMessage('');
+        try {
+            await testConnection({ canvasUrl: getFormattedUrl(), apiToken: apiToken.trim() });
+            setTestStatus('success');
+            setTestMessage('Successfully connected to the Canvas API!');
+        } catch (err) {
+            setTestStatus('error');
+            if (err instanceof TypeError && err.message === 'Failed to fetch') {
+                setTestMessage('Connection failed. This is likely a browser security (CORS) issue. A backend proxy is required for this app to work with live Canvas data.');
+            } else if (err instanceof Error) {
+                 setTestMessage(`Connection failed: ${err.message}`);
+            } else {
+                setTestMessage('An unknown error occurred during the connection test.');
+            }
+        }
+    };
 
     return (
         <div className="animate-fade-in max-w-2xl mx-auto">
@@ -70,10 +97,35 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear }
                             />
                         </div>
                     </div>
-                    <div className="mt-8 flex items-center justify-between">
-                        <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 disabled:bg-gray-600 transition-colors">
-                            {isSaved ? 'Saved!' : 'Save Credentials'}
-                        </button>
+                    
+                    {testStatus !== 'idle' && (
+                        <div className={`mt-4 p-3 rounded-md text-sm ${
+                            testStatus === 'success' ? 'bg-green-500/20 text-green-300' :
+                            testStatus === 'error' ? 'bg-red-500/20 text-red-300' : ''
+                        }`}>
+                            {testMessage}
+                        </div>
+                    )}
+
+                    <div className="mt-8 flex items-center justify-between flex-wrap gap-4">
+                        <div className="flex items-center gap-2">
+                             <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 disabled:bg-gray-600 transition-colors">
+                                {isSaved ? 'Saved!' : 'Save Credentials'}
+                            </button>
+                             <button 
+                                type="button" 
+                                onClick={handleTestConnection}
+                                disabled={!canvasUrl || !apiToken || testStatus === 'testing'}
+                                className="px-6 py-2 bg-gray-600 text-white font-semibold rounded-md hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
+                             >
+                                {testStatus === 'testing' ? (
+                                    <span className="flex items-center">
+                                        <div className="w-4 h-4 mr-2 border-2 border-white border-dashed rounded-full animate-spin"></div>
+                                        Testing...
+                                    </span>
+                                ) : 'Test Connection'}
+                            </button>
+                        </div>
                         {settings && (
                            <button type="button" onClick={handleClear} className="px-4 py-2 bg-red-800/50 text-red-300 text-sm font-medium rounded-md hover:bg-red-800 transition-colors">
                                 Clear Settings

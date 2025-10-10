@@ -17,6 +17,12 @@ const fetchCanvasAPI = async (endpoint: string, settings: Settings) => {
     return response.json();
 };
 
+export const testConnection = async (settings: Settings): Promise<boolean> => {
+    // A lightweight endpoint to verify credentials and connectivity.
+    await fetchCanvasAPI('users/self/profile', settings);
+    return true;
+};
+
 export const getCourses = async (settings: Settings): Promise<Course[]> => {
     // Fetch only active courses
     const rawCourses = await fetchCanvasAPI('courses?enrollment_state=active&per_page=50', settings);
