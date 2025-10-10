@@ -65,7 +65,11 @@ export const useCanvasData = (settings: Settings | null) => {
         setCalendarEvents(eventsData);
       } catch (err) {
         console.error("Failed to fetch canvas data", err);
-        setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+        if (err instanceof TypeError && err.message === 'Failed to fetch') {
+            setError('Could not connect to the Canvas API. This is likely a browser security restriction (CORS). A secure backend proxy is required for this application to make live API calls.');
+        } else {
+            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+        }
         // Clear data on error
         setCourses([]);
         setAssignments([]);
