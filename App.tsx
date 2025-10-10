@@ -1,0 +1,123 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import Sidebar from './components/Sidebar';
+import Dashboard from './components/Dashboard';
+import CoursesView from './components/CoursesView';
+import CalendarView from './components/CalendarView';
+import SummarizerView from './components/SummarizerView';
+import NotesView from './components/NotesView';
+import SettingsView from './components/SettingsView';
+import Header from './components/Header';
+import { Page, Settings } from './types';
+import { useCanvasData } from './hooks/useCanvasData';
+import { useSettings } from './hooks/useSettings';
+import { BellIcon, XIcon } from './components/icons/Icons';
+
+const App: React.FC = () => {
+  const { settings, saveSettings, clearSettings, isConfigured } = useSettings();
+  const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
+  const { courses, assignments, calendarEvents, loading, error, newAssignments } = useCanvasData(settings);
+  const [showNotification, setShowNotification] = useState(false);
+
+  useEffect(() => {
+    if (newAssignments.length > 0) {
+      setShowNotification(true);
+    }
+  }, [newAssignments]);
+  
+  const notificationMessage = useMemo(() => {
+      if (newAssignments.length === 0) return '';
+      if (newAssignments.length === 1) {
+          return `New assignment posted: "${newAssignments[0].title}"`;
+      }
+      return `${newAssignments.length} new assignments have been posted. Check your courses.`;
+  }, [newAssignments]);
+
+
+  const renderPage = () => {
+    // If not configured, force the settings page.
+    if (!isConfigured && currentPage !== Page.Settings) {
+      setCurrentPage(Page.Settings);
+      return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} />;
+    }
+
+    switch (currentPage) {
+      case Page.Dashboard:
+        return <Dashboard assignments={assignments} calendarEvents={calendarEvents} />;
+      case Page.Courses:
+        return <CoursesView courses={courses} assignments={assignments} />;
+      case Page.Calendar:
+        return <CalendarView events={calendarEvents} />;
+      case Page.Summarizer:
+        return <SummarizerView />;
+      case Page.Notes:
+        return <NotesView />;
+      case Page.Settings:
+        return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} />;
+      default:
+        return <Dashboard assignments={assignments} calendarEvents={calendarEvents} />;
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-900 text-gray-100 font-sans">
+      <style>{`
+        @keyframes slide-in-right {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in-right {
+          animation: slide-in-right 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+        }
+      `}</style>
+      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} isConfigured={isConfigured}/>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header courses={courses} assignments={assignments} />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-6 md:p-8">
+          {loading ? (
+             <div className="flex items-center justify-center h-full">
+                <div className="w-16 h-16 border-4 border-blue-400 border-dashed rounded-full animate-spin"></div>
+             </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="bg-red-900/50 border border-red-700 text-red-300 p-6 rounded-lg text-center">
+                <h3 className="font-bold text-lg mb-2">Connection Error</h3>
+                <p className="text-sm">{error}</p>
+                <p className="text-sm mt-2">Please check your credentials on the Settings page.</p>
+              </div>
+            </div>
+          ) : (
+            renderPage()
+          )}
+        </main>
+      </div>
+
+      {/* Notification Popup */}
+      {showNotification && (
+          <div className="fixed top-5 right-5 w-full max-w-sm bg-gray-800 border border-blue-700 rounded-lg shadow-2xl z-50 animate-slide-in-right">
+              <div className="p-4">
+                  <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                         <BellIcon className="h-6 w-6 text-blue-400" />
+                      </div>
+                      <div className="ml-3 w-0 flex-1 pt-0.5">
+                          <p className="text-sm font-medium text-white">New Assignments</p>
+                          <p className="mt-1 text-sm text-gray-300">{notificationMessage}</p>
+                      </div>
+                      <div className="ml-4 flex-shrink-0 flex">
+                          <button
+                              onClick={() => setShowNotification(false)}
+                              className="inline-flex text-gray-400 rounded-md hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500"
+                          >
+                              <span className="sr-only">Close</span>
+                              <XIcon className="h-5 w-5" />
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
+    </div>
+  );
+};
+
+export default App;

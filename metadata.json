@@ -1,0 +1,5 @@
+{
+  "name": "Canvas AI Assistant",
+  "description": "An intelligent dashboard for Canvas LMS that uses AI to help students manage assignments, generate notes, summarize documents, and estimate workloads. Features a sleek, dark-mode UI for a modern learning experience.",
+  "requestFramePermissions": []
+}
