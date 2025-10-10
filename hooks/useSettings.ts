@@ -14,9 +14,15 @@ export const useSettings = () => {
                 const parsed = JSON.parse(storedSettings);
                 setSettings(parsed);
                 setIsConfigured(!!(parsed.canvasUrl && parsed.apiToken));
+            } else {
+                // If no settings exist, initialize with a default structure
+                setSettings({ canvasUrl: '', apiToken: '', sampleDataMode: false });
+                setIsConfigured(false);
             }
         } catch (error) {
             console.error("Failed to parse settings from localStorage", error);
+            // On error, also initialize with a default structure
+            setSettings({ canvasUrl: '', apiToken: '', sampleDataMode: false });
         }
     }, []);
 
@@ -33,7 +39,8 @@ export const useSettings = () => {
     const clearSettings = useCallback(() => {
         try {
             localStorage.removeItem(SETTINGS_KEY);
-            setSettings(null);
+            const clearedSettings = { canvasUrl: '', apiToken: '', sampleDataMode: false };
+            setSettings(clearedSettings);
             setIsConfigured(false);
         } catch (error) {
             console.error("Failed to clear settings from localStorage", error);
@@ -42,12 +49,10 @@ export const useSettings = () => {
 
     const enableSampleDataMode = useCallback(() => {
         setSettings(prevSettings => {
-            if (prevSettings) {
-                const newSettings = { ...prevSettings, sampleDataMode: true };
-                localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
-                return newSettings;
-            }
-            return prevSettings;
+            const currentSettings = prevSettings || { canvasUrl: '', apiToken: '', sampleDataMode: false };
+            const newSettings = { ...currentSettings, sampleDataMode: true };
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+            return newSettings;
         });
     }, []);
 

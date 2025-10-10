@@ -6,13 +6,28 @@ import CalendarView from './components/CalendarView';
 import SummarizerView from './components/SummarizerView';
 import NotesView from './components/NotesView';
 import Header from './components/Header';
+import SettingsView from './components/SettingsView';
 import { Page } from './types';
 import { useCanvasData } from './hooks/useCanvasData';
+import { useSettings } from './hooks/useSettings';
 import { BellIcon, XIcon } from './components/icons/Icons';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
-  const { courses, assignments, calendarEvents, loading, error, newAssignments, connectionStatus } = useCanvasData();
+  const { settings, saveSettings, clearSettings, isConfigured, enableSampleDataMode } = useSettings();
+  
+  // Conditionally call useCanvasData only when settings are ready
+  const canvasData = (isConfigured || settings?.sampleDataMode) ? useCanvasData() : {
+    courses: [],
+    assignments: [],
+    calendarEvents: [],
+    loading: true,
+    error: null,
+    newAssignments: [],
+    connectionStatus: 'live' as const
+  };
+
+  const { courses, assignments, calendarEvents, loading, error, newAssignments, connectionStatus } = canvasData;
 
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
@@ -28,6 +43,29 @@ const App: React.FC = () => {
       setShowNotification(true);
     }
   }, [newAssignments]);
+
+  // Initial check to prevent flicker and render a loading screen while settings are loaded from storage
+  if (settings === null) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-900">
+        <div className="w-16 h-16 border-4 border-blue-400 border-dashed rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // If not configured and not in sample mode, show settings view
+  if (!isConfigured && !settings.sampleDataMode) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-900 p-4">
+        <SettingsView
+          settings={settings}
+          onSave={saveSettings}
+          onClear={clearSettings}
+          onEnableSampleDataMode={enableSampleDataMode}
+        />
+      </div>
+    );
+  }
 
   const renderPage = () => {
     switch (currentPage) {

@@ -1,11 +1,25 @@
-import { Course, Assignment } from '../types';
+import { Course, Assignment, Settings } from '../types';
+
+const SETTINGS_KEY = 'canvasAiAssistantSettings';
 
 const fetchFromProxy = async (endpoint: string) => {
-    // This URL points to our Netlify Function.
+    const settingsRaw = localStorage.getItem(SETTINGS_KEY);
+    if (!settingsRaw) {
+        throw new Error('Canvas API credentials are not configured.');
+    }
+    const settings: Settings = JSON.parse(settingsRaw);
+    if (!settings.canvasUrl || !settings.apiToken) {
+        throw new Error('Canvas API credentials are not valid.');
+    }
+
     const url = `/.netlify/functions/canvas-proxy?endpoint=${endpoint}`;
     
-    // No headers needed here, the proxy handles authentication.
-    const response = await fetch(url);
+    const headers = {
+        'x-canvas-url': settings.canvasUrl,
+        'x-canvas-token': settings.apiToken,
+    };
+    
+    const response = await fetch(url, { headers });
 
     if (!response.ok) {
         const errorData = await response.json();
@@ -14,9 +28,23 @@ const fetchFromProxy = async (endpoint: string) => {
     return response.json();
 };
 
-export const testConnection = async (): Promise<boolean> => {
-    // A lightweight endpoint to verify credentials and connectivity via the proxy.
-    await fetchFromProxy('users/self/profile');
+export const testConnection = async (canvasUrl: string, apiToken: string): Promise<boolean> => {
+    const endpoint = 'users/self/profile';
+    const url = `/.netlify/functions/canvas-proxy?endpoint=${endpoint}`;
+
+    const headers = {
+        'x-canvas-url': canvasUrl,
+        'x-canvas-token': apiToken,
+    };
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Proxy Error: ${response.statusText}`);
+    }
+    
+    await response.json();
     return true;
 };
 

@@ -5,6 +5,9 @@ interface Event {
   queryStringParameters: {
     endpoint?: string;
   };
+  headers: {
+    [name: string]: string | undefined;
+  };
 }
 
 export const handler = async (event: Event) => {
@@ -16,14 +19,15 @@ export const handler = async (event: Event) => {
       body: JSON.stringify({ error: 'Endpoint query parameter is required.' }),
     };
   }
-
-  const canvasUrl = process.env.CANVAS_API_URL;
-  const apiToken = process.env.CANVAS_API_TOKEN;
+  
+  // Headers from the client are lowercased by Netlify Functions.
+  const canvasUrl = event.headers['x-canvas-url'];
+  const apiToken = event.headers['x-canvas-token'];
 
   if (!canvasUrl || !apiToken) {
     return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Canvas URL or API Token is not configured in Netlify environment variables.' }),
+      statusCode: 401,
+      body: JSON.stringify({ error: 'Canvas URL or API Token not provided in request headers.' }),
     };
   }
 
@@ -37,10 +41,19 @@ export const handler = async (event: Event) => {
     
     if (!response.ok) {
         const errorBody = await response.text();
-        return {
-            statusCode: response.status,
-            body: JSON.stringify({ error: `Canvas API error: ${response.statusText}`, details: errorBody }),
-        };
+        // Try to parse the error body as JSON, as Canvas often returns structured errors.
+        try {
+            const errorJson = JSON.parse(errorBody);
+            return {
+                statusCode: response.status,
+                body: JSON.stringify({ error: `Canvas API error: ${response.statusText}`, details: errorJson }),
+            };
+        } catch (e) {
+            return {
+                statusCode: response.status,
+                body: JSON.stringify({ error: `Canvas API error: ${response.statusText}`, details: errorBody }),
+            };
+        }
     }
 
     const data = await response.json();
@@ -53,9 +66,10 @@ export const handler = async (event: Event) => {
       body: JSON.stringify(data),
     };
   } catch (error) {
+    // This typically catches network errors, e.g., if the canvasUrl is invalid.
     return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch from Canvas API.', details: error instanceof Error ? error.message : 'Unknown error' }),
+      statusCode: 502, // Bad Gateway
+      body: JSON.stringify({ error: 'Failed to fetch from the provided Canvas URL.', details: error instanceof Error ? error.message : 'Unknown error' }),
     };
   }
 };

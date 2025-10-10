@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Page } from '../types';
+import { Settings } from '../types';
 import { testConnection } from '../services/canvasApiService';
 import { ExclamationTriangleIcon } from './icons/Icons';
 
@@ -8,12 +8,11 @@ interface SettingsViewProps {
     onSave: (settings: Settings) => void;
     onClear: () => void;
     onEnableSampleDataMode: () => void;
-    onNavigate: (page: Page) => void;
 }
 
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
 
-const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, onEnableSampleDataMode, onNavigate }) => {
+const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, onEnableSampleDataMode }) => {
     const [canvasUrl, setCanvasUrl] = useState('');
     const [apiToken, setApiToken] = useState('');
     const [isSaved, setIsSaved] = useState(false);
@@ -29,6 +28,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
     
     const getFormattedUrl = () => {
         let formattedUrl = canvasUrl.trim();
+        if (!formattedUrl.startsWith('http')) {
+            formattedUrl = `https://${formattedUrl}`;
+        }
         if (formattedUrl.endsWith('/')) {
             formattedUrl = formattedUrl.slice(0, -1);
         }
@@ -53,14 +55,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
         setTestStatus('testing');
         setTestMessage('');
         try {
-            // Fix: The `testConnection` function expects 0 arguments. The proxy handles credentials.
-            await testConnection();
+            await testConnection(getFormattedUrl(), apiToken.trim());
             setTestStatus('success');
             setTestMessage('Successfully connected to the Canvas API!');
         } catch (err) {
             setTestStatus('error');
-            if (err instanceof TypeError && err.message === 'Failed to fetch') {
-                setTestMessage('Connection failed. This is likely a browser security (CORS) issue. A backend proxy is required for this app to work with live Canvas data.');
+            if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+                 setTestMessage('Connection failed. This might be a browser security (CORS) issue, or the proxy could not be reached. Check the browser console for more details.');
             } else if (err instanceof Error) {
                  setTestMessage(`Connection failed: ${err.message}`);
             } else {
@@ -71,7 +72,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
 
     const handleProceedWithSample = () => {
         onEnableSampleDataMode();
-        onNavigate(Page.Dashboard);
     };
 
     const isCorsError = testStatus === 'error' && testMessage.includes('CORS');
@@ -91,7 +91,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                                 id="canvas-url"
                                 value={canvasUrl}
                                 onChange={(e) => setCanvasUrl(e.target.value)}
-                                placeholder="https://canvas.instructure.com"
+                                placeholder="yourschool.instructure.com"
                                 required
                                 className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
@@ -119,13 +119,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                         </div>
                     )}
 
-                    {isCorsError && (
+                    {(testStatus === 'error') && (
                         <div className="mt-6 p-4 rounded-lg bg-yellow-900/50 border border-yellow-700 text-yellow-300 text-sm">
                             <div className="flex items-start">
                                 <ExclamationTriangleIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-yellow-400"/>
                                 <div>
-                                    <h4 className="font-bold text-yellow-200">Connection Failed</h4>
-                                    <p className="mt-1">{testMessage}</p>
+                                    <h4 className="font-bold text-yellow-200">Live Data Unavailable?</h4>
+                                    <p className="mt-1">If the connection test fails, you can still explore the app's features with sample data.</p>
                                     <button
                                         type="button"
                                         onClick={handleProceedWithSample}
@@ -157,7 +157,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                                 ) : 'Test Connection'}
                             </button>
                         </div>
-                        {settings && (
+                        {settings?.apiToken && (
                            <button type="button" onClick={handleClear} className="px-4 py-2 bg-red-800/50 text-red-300 text-sm font-medium rounded-md hover:bg-red-800 transition-colors">
                                 Clear Settings
                            </button>
