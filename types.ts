@@ -38,4 +38,5 @@ export interface AiTutorMessage {
 export interface Settings {
     canvasUrl: string;
     apiToken: string;
+    sampleDataMode?: boolean;
 }

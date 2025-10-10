@@ -12,7 +12,6 @@ export const useCanvasData = (settings: Settings | null) => {
   const [newAssignments, setNewAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [connectionWarning, setConnectionWarning] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -20,37 +19,32 @@ export const useCanvasData = (settings: Settings | null) => {
         setLoading(true);
         setError(null);
         setNewAssignments([]);
-        setConnectionWarning(null);
         let coursesData: Course[], assignmentsData: Assignment[];
 
-        if (settings?.canvasUrl && settings?.apiToken) {
+        // If in sample mode OR not configured, use mock service.
+        if (settings?.sampleDataMode || !settings?.canvasUrl || !settings?.apiToken) {
+            [coursesData, assignmentsData] = await Promise.all([
+                mockService.getCourses(),
+                mockService.getAssignments(),
+            ]);
+        } else {
+            // Otherwise, attempt to fetch live data.
             try {
-                // Fetch from live API
                 [coursesData, assignmentsData] = await Promise.all([
                     apiService.getCourses(settings),
                     apiService.getAssignments(settings),
                 ]);
             } catch (err) {
-                 console.error("Failed to fetch live canvas data", err);
-                 // Graceful fallback for CORS errors
-                 if (err instanceof TypeError && err.message === 'Failed to fetch') {
-                    setConnectionWarning('Live connection failed due to a browser security restriction (CORS). Loading sample data instead.');
-                    // Fallback to mock data
-                    [coursesData, assignmentsData] = await Promise.all([
-                        mockService.getCourses(),
-                        mockService.getAssignments(),
-                    ]);
-                 } else {
-                    // Handle other errors (e.g., 401 Unauthorized) as blocking errors
-                    throw err;
-                 }
+                 // The only errors here should be critical ones now.
+                 // The user would have been warned about CORS on the settings page.
+                 console.error("Critical error fetching canvas data", err);
+                 setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+                 setCourses([]);
+                 setAssignments([]);
+                 setCalendarEvents([]);
+                 setLoading(false); // Make sure to stop loading on error
+                 return; // Exit early
             }
-        } else {
-            // Fetch from mock service if not configured
-            [coursesData, assignmentsData] = await Promise.all([
-                mockService.getCourses(),
-                mockService.getAssignments(),
-            ]);
         }
 
         // Check for new assignments
@@ -82,10 +76,9 @@ export const useCanvasData = (settings: Settings | null) => {
         setAssignments(assignmentsData);
         setCalendarEvents(eventsData);
       } catch (err) {
-        // This catch block now only handles critical, blocking errors
-        console.error("Critical error fetching canvas data", err);
+        // This catch block handles any unexpected errors during data processing
+        console.error("Critical error processing canvas data", err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-        // Clear data on error
         setCourses([]);
         setAssignments([]);
         setCalendarEvents([]);
@@ -97,5 +90,5 @@ export const useCanvasData = (settings: Settings | null) => {
     fetchData();
   }, [settings]);
 
-  return { courses, assignments, calendarEvents, loading, error, newAssignments, connectionWarning };
+  return { courses, assignments, calendarEvents, loading, error, newAssignments };
 };

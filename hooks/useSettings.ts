@@ -40,5 +40,17 @@ export const useSettings = () => {
         }
     }, []);
 
-    return { settings, saveSettings, clearSettings, isConfigured };
+    const enableSampleDataMode = useCallback(() => {
+        setSettings(prevSettings => {
+            if (prevSettings) {
+                const newSettings = { ...prevSettings, sampleDataMode: true };
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+                return newSettings;
+            }
+            return prevSettings;
+        });
+    }, []);
+
+
+    return { settings, saveSettings, clearSettings, isConfigured, enableSampleDataMode };
 };

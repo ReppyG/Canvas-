@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Settings } from '../types';
+import { Settings, Page } from '../types';
 import { testConnection } from '../services/canvasApiService';
+import { ExclamationTriangleIcon } from './icons/Icons';
 
 interface SettingsViewProps {
     settings: Settings | null;
     onSave: (settings: Settings) => void;
     onClear: () => void;
+    onEnableSampleDataMode: () => void;
+    onNavigate: (page: Page) => void;
 }
 
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
 
-const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear }) => {
+const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, onEnableSampleDataMode, onNavigate }) => {
     const [canvasUrl, setCanvasUrl] = useState('');
     const [apiToken, setApiToken] = useState('');
     const [isSaved, setIsSaved] = useState(false);
@@ -34,8 +37,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear }
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave({ canvasUrl: getFormattedUrl(), apiToken: apiToken.trim() });
+        onSave({ canvasUrl: getFormattedUrl(), apiToken: apiToken.trim(), sampleDataMode: false });
         setIsSaved(true);
+        setTestStatus('idle');
         setTimeout(() => setIsSaved(false), 3000);
     };
 
@@ -49,7 +53,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear }
         setTestStatus('testing');
         setTestMessage('');
         try {
-            await testConnection({ canvasUrl: getFormattedUrl(), apiToken: apiToken.trim() });
+            await testConnection({ canvasUrl: getFormattedUrl(), apiToken: apiToken.trim(), sampleDataMode: false });
             setTestStatus('success');
             setTestMessage('Successfully connected to the Canvas API!');
         } catch (err) {
@@ -63,6 +67,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear }
             }
         }
     };
+
+    const handleProceedWithSample = () => {
+        onEnableSampleDataMode();
+        onNavigate(Page.Dashboard);
+    };
+
+    const isCorsError = testStatus === 'error' && testMessage.includes('CORS');
 
     return (
         <div className="animate-fade-in max-w-2xl mx-auto">
@@ -98,12 +109,31 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear }
                         </div>
                     </div>
                     
-                    {testStatus !== 'idle' && (
+                    {testStatus !== 'idle' && !isCorsError && (
                         <div className={`mt-4 p-3 rounded-md text-sm ${
                             testStatus === 'success' ? 'bg-green-500/20 text-green-300' :
                             testStatus === 'error' ? 'bg-red-500/20 text-red-300' : ''
                         }`}>
                             {testMessage}
+                        </div>
+                    )}
+
+                    {isCorsError && (
+                        <div className="mt-6 p-4 rounded-lg bg-yellow-900/50 border border-yellow-700 text-yellow-300 text-sm">
+                            <div className="flex items-start">
+                                <ExclamationTriangleIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-yellow-400"/>
+                                <div>
+                                    <h4 className="font-bold text-yellow-200">Connection Failed</h4>
+                                    <p className="mt-1">{testMessage}</p>
+                                    <button
+                                        type="button"
+                                        onClick={handleProceedWithSample}
+                                        className="mt-4 w-full text-center px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors"
+                                    >
+                                        Proceed with Sample Data
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     )}
 

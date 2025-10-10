@@ -13,14 +13,13 @@ import { useSettings } from './hooks/useSettings';
 import { BellIcon, XIcon, ExclamationTriangleIcon } from './components/icons/Icons';
 
 const App: React.FC = () => {
-  const { settings, saveSettings, clearSettings, isConfigured } = useSettings();
+  const { settings, saveSettings, clearSettings, isConfigured, enableSampleDataMode } = useSettings();
   const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
-  const { courses, assignments, calendarEvents, loading, error, newAssignments, connectionWarning } = useCanvasData(settings);
+  const { courses, assignments, calendarEvents, loading, error, newAssignments } = useCanvasData(settings);
 
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationTitle, setNotificationTitle] = useState('');
-  const [notificationType, setNotificationType] = useState<'info' | 'warning'>('info');
 
   useEffect(() => {
     if (newAssignments.length > 0) {
@@ -29,26 +28,15 @@ const App: React.FC = () => {
           ? `New assignment posted: "${newAssignments[0].title}"`
           : `${newAssignments.length} new assignments have been posted. Check your courses.`;
       setNotificationMessage(message);
-      setNotificationType('info');
       setShowNotification(true);
     }
   }, [newAssignments]);
-
-  useEffect(() => {
-    if (connectionWarning) {
-        setNotificationTitle('Connection Issue');
-        setNotificationMessage(connectionWarning);
-        setNotificationType('warning');
-        setShowNotification(true);
-    }
-  }, [connectionWarning]);
-
 
   const renderPage = () => {
     // If not configured, force the settings page.
     if (!isConfigured && currentPage !== Page.Settings) {
       setCurrentPage(Page.Settings);
-      return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} />;
+      return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} onEnableSampleDataMode={enableSampleDataMode} onNavigate={setCurrentPage} />;
     }
 
     switch (currentPage) {
@@ -63,7 +51,7 @@ const App: React.FC = () => {
       case Page.Notes:
         return <NotesView />;
       case Page.Settings:
-        return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} />;
+        return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} onEnableSampleDataMode={enableSampleDataMode} onNavigate={setCurrentPage} />;
       default:
         return <Dashboard assignments={assignments} calendarEvents={calendarEvents} />;
     }
@@ -82,7 +70,7 @@ const App: React.FC = () => {
       `}</style>
       <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} isConfigured={isConfigured}/>
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header courses={courses} assignments={assignments} />
+        <Header courses={courses} assignments={assignments} settings={settings} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-6 md:p-8">
           {loading ? (
              <div className="flex items-center justify-center h-full">
@@ -102,17 +90,13 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {/* Notification Popup */}
+      {/* Notification Popup for New Assignments */}
       {showNotification && (
-          <div className={`fixed top-5 right-5 w-full max-w-sm bg-gray-800 border ${notificationType === 'info' ? 'border-blue-700' : 'border-yellow-700'} rounded-lg shadow-2xl z-50 animate-slide-in-right`}>
+          <div className="fixed top-5 right-5 w-full max-w-sm bg-gray-800 border border-blue-700 rounded-lg shadow-2xl z-50 animate-slide-in-right">
               <div className="p-4">
                   <div className="flex items-start">
                       <div className="flex-shrink-0">
-                         {notificationType === 'info' ? (
-                            <BellIcon className="h-6 w-6 text-blue-400" />
-                         ) : (
-                            <ExclamationTriangleIcon className="h-6 w-6 text-yellow-400" />
-                         )}
+                         <BellIcon className="h-6 w-6 text-blue-400" />
                       </div>
                       <div className="ml-3 w-0 flex-1 pt-0.5">
                           <p className="text-sm font-medium text-white">{notificationTitle}</p>
