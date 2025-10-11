@@ -45,8 +45,9 @@ const App: React.FC = () => {
     );
   }
 
-  // If not configured and not in sample mode, show settings view
-  if (!isConfigured && !settings.sampleDataMode) {
+  // If not configured, or if there's a data fetching error, show the settings view.
+  // This provides a clear path for the user to correct invalid credentials.
+  if ((!isConfigured && !settings.sampleDataMode) || error) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900 p-4">
         <SettingsView
@@ -54,6 +55,8 @@ const App: React.FC = () => {
           onSave={saveSettings}
           onClear={clearSettings}
           onEnableSampleDataMode={enableSampleDataMode}
+          // Pass the connection error to the settings view so it can be displayed.
+          initialError={error}
         />
       </div>
     );
@@ -95,14 +98,6 @@ const App: React.FC = () => {
              <div className="flex items-center justify-center h-full">
                 <div className="w-16 h-16 border-4 border-blue-400 border-dashed rounded-full animate-spin"></div>
              </div>
-          ) : error ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="bg-red-900/50 border border-red-700 text-red-300 p-6 rounded-lg text-center max-w-lg">
-                <h3 className="font-bold text-lg mb-2">Connection Error</h3>
-                <p className="text-sm">{error}</p>
-                <p className="text-sm mt-2">This might be due to incorrect API credentials configured in your Netlify settings. Please check them and redeploy.</p>
-              </div>
-            </div>
           ) : (
             renderPage()
           )}

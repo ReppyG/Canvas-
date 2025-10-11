@@ -8,16 +8,18 @@ interface SettingsViewProps {
     onSave: (settings: Settings) => void;
     onClear: () => void;
     onEnableSampleDataMode: () => void;
+    initialError?: string | null;
 }
 
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
 
-const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, onEnableSampleDataMode }) => {
+const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, onEnableSampleDataMode, initialError }) => {
     const [canvasUrl, setCanvasUrl] = useState('');
     const [apiToken, setApiToken] = useState('');
     const [isSaved, setIsSaved] = useState(false);
     const [testStatus, setTestStatus] = useState<TestStatus>('idle');
     const [testMessage, setTestMessage] = useState('');
+    const [displayError, setDisplayError] = useState(initialError);
 
     useEffect(() => {
         if (settings) {
@@ -26,6 +28,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
         }
     }, [settings]);
     
+    useEffect(() => {
+        if (initialError) {
+            setDisplayError(initialError);
+        }
+    }, [initialError]);
+
     const getFormattedUrl = () => {
         let formattedUrl = canvasUrl.trim();
         if (!formattedUrl.startsWith('http')) {
@@ -54,6 +62,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
     const handleTestConnection = async () => {
         setTestStatus('testing');
         setTestMessage('');
+        setDisplayError(null); // Clear the main error when testing
         try {
             await testConnection(getFormattedUrl(), apiToken.trim());
             setTestStatus('success');
@@ -81,7 +90,22 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
             <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
             <p className="text-gray-400 mb-8">Connect to your Canvas account to get live data.</p>
 
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-8">
+                {displayError && (
+                     <div className="mb-6 p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-300 text-sm">
+                         <div className="flex items-start">
+                             <ExclamationTriangleIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-red-400"/>
+                             <div>
+                                 <h4 className="font-bold text-red-200">Connection Failed</h4>
+                                 <p className="mt-1">
+                                     {`The application could not connect to Canvas: "${displayError}".`}
+                                     <br/>
+                                     Please verify your Canvas URL and API Token are correct and try again.
+                                 </p>
+                             </div>
+                         </div>
+                     </div>
+                )}
                 <form onSubmit={handleSave}>
                     <div className="space-y-6">
                         <div>
@@ -90,7 +114,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                                 type="url"
                                 id="canvas-url"
                                 value={canvasUrl}
-                                onChange={(e) => setCanvasUrl(e.target.value)}
+                                onChange={(e) => { setCanvasUrl(e.target.value); setDisplayError(null); }}
                                 placeholder="yourschool.instructure.com"
                                 required
                                 className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -102,7 +126,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                                 type="password"
                                 id="api-token"
                                 value={apiToken}
-                                onChange={(e) => setApiToken(e.target.value)}
+                                onChange={(e) => { setApiToken(e.target.value); setDisplayError(null); }}
                                 placeholder="Enter your generated token"
                                 required
                                 className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
