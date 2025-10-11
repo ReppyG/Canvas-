@@ -74,6 +74,15 @@ const App: React.FC = () => {
         return <SummarizerView />;
       case Page.Notes:
         return <NotesView />;
+      case Page.Settings:
+        return (
+          <SettingsView
+            settings={settings}
+            onSave={saveSettings}
+            onClear={clearSettings}
+            onEnableSampleDataMode={enableSampleDataMode}
+          />
+        );
       default:
         return <Dashboard assignments={assignments} calendarEvents={calendarEvents} />;
     }
@@ -94,7 +103,7 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header courses={courses} assignments={assignments} connectionStatus={connectionStatus} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-6 md:p-8">
-          {loading ? (
+          {loading && currentPage !== Page.Settings ? (
              <div className="flex items-center justify-center h-full">
                 <div className="w-16 h-16 border-4 border-blue-400 border-dashed rounded-full animate-spin"></div>
              </div>

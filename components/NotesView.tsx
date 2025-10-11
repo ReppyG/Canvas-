@@ -108,7 +108,7 @@ const NotesView: React.FC = () => {
   const renderError = () => {
     if (!error) return null;
 
-    const isApiKeyError = error.includes('Invalid API Key');
+    const isConfigError = error.includes('Invalid API Key') || error.includes('not configured');
     const isGenericAiError = error.startsWith('[AI Error]');
 
     return (
@@ -117,9 +117,9 @@ const NotesView: React.FC = () => {
                 <ExclamationTriangleIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-red-400"/>
                 <div>
                     <h4 className="font-bold text-red-200">
-                        {isApiKeyError ? "AI Service Not Configured" : "Generation Failed"}
+                        {isConfigError ? "AI Service Not Configured" : "Generation Failed"}
                     </h4>
-                    {isApiKeyError ? (
+                    {isConfigError ? (
                         <p className="mt-1">
                            The application's AI features could not be accessed. This is likely due to a missing or invalid API key in the application's configuration. Please contact the administrator to resolve this issue.
                         </p>

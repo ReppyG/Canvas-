@@ -9,12 +9,14 @@ function getClient(): GoogleGenAI {
         return ai;
     }
     
-    // This check prevents a hard crash if the API_KEY is not set.
-    // The error will be caught by the calling functions that use this client.
-    if (!process.env.API_KEY) {
-        throw new Error("Gemini API key is not configured. Please set the API_KEY environment variable in your deployment settings.");
+    // Vite exposes environment variables on the `import.meta.env` object.
+    // Variables must be prefixed with `VITE_` to be exposed to the client.
+    const apiKey = import.meta.env.VITE_API_KEY;
+
+    if (!apiKey) {
+        throw new Error("Gemini API key is not configured. Please set the VITE_API_KEY environment variable.");
     }
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    ai = new GoogleGenAI({ apiKey });
     return ai;
 }
 
@@ -30,6 +32,11 @@ export const generateText = async (prompt: string): Promise<string> => {
   } catch (error) {
     console.error("Error generating text:", error);
     if (error instanceof Error) {
+        // Catch the specific "not configured" error from getClient()
+        if (error.message.includes('not configured')) {
+             return `[AI Error] ${error.message}`;
+        }
+        // Catch errors from the SDK which may indicate an invalid key
         if (error.message.includes('API key')) {
              return `[AI Error] Invalid API Key: Please ensure your Gemini API key is configured correctly in your deployment settings. The application was unable to authenticate with the provided credentials.`;
         }

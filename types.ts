@@ -1,3 +1,12 @@
+// Fix: Add type declarations for Vite's `import.meta.env` to resolve TypeScript errors.
+declare global {
+  interface ImportMeta {
+    readonly env: {
+      readonly VITE_API_KEY: string;
+    }
+  }
+}
+
 export interface Course {
   id: number;
   name: string;
@@ -27,6 +36,7 @@ export enum Page {
   Calendar = 'Calendar',
   Summarizer = 'Summarizer',
   Notes = 'Notes',
+  Settings = 'Settings',
 }
 
 export interface AiTutorMessage {
