@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Course, Assignment, AiTutorMessage } from '../types';
 import { format } from 'date-fns';
 import { estimateAssignmentTime, getAssignmentHelp, generateNotes, createTutorChat } from '../services/geminiService';
-import { Chat, GenerateContentResponse } from '@google/ai-studio-static';
+import { Chat, GenerateContentResponse } from '@google/genai';
 import { SparklesIcon, XIcon, ClockIcon, DocumentTextIcon, QuestionMarkCircleIcon, NoteIcon } from './icons/Icons';
 
 const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> = ({ assignment, onClose }) => {

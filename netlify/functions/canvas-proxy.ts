@@ -1,17 +1,10 @@
 // This is a Netlify Function that acts as a secure proxy for the Canvas API.
 // It lives in the `netlify/functions` directory.
 
-interface Event {
-  queryStringParameters: {
-    endpoint?: string;
-  };
-  headers: {
-    [name: string]: string | undefined;
-  };
-}
+import type { Handler } from '@netlify/functions';
 
-export const handler = async (event: Event) => {
-  const { endpoint } = event.queryStringParameters;
+export const handler: Handler = async (event) => {
+  const endpoint = event.queryStringParameters?.endpoint;
 
   if (!endpoint) {
     return {
