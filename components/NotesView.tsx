@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { generateNotesFromText } from '../services/geminiService';
-import { SparklesIcon, UploadIcon, DocumentTextIcon, ClipboardIcon } from './icons/Icons';
+import { SparklesIcon, UploadIcon, DocumentTextIcon, ClipboardIcon, ExclamationTriangleIcon } from './icons/Icons';
 
 type InputType = 'text' | 'file';
 
@@ -35,12 +35,10 @@ const NotesView: React.FC = () => {
   };
 
   const handleGenerateNotes = async () => {
-    if (inputType === 'text' && !inputText.trim()) {
-      setError('Please enter some text to generate a study guide from.');
-      return;
-    }
-    if (inputType === 'file' && !file) {
-      setError('Please select a file first.');
+    const hasInput = (inputType === 'text' && inputText.trim() !== '') || (inputType === 'file' && file !== null);
+    
+    if (!hasInput) {
+      setError('Please provide text or a file to generate a study guide from.');
       return;
     }
 
@@ -98,11 +96,39 @@ const NotesView: React.FC = () => {
         value={inputText}
         onChange={(e) => {
             setInputText(e.target.value);
+            if (e.target.value) setError('');
             setFile(null);
         }}
         placeholder="e.g., Paste a chapter from your textbook, an academic article, or lecture transcript..."
         className="w-full h-full min-h-[16rem] p-4 bg-gray-900/50 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-200 resize-y"
       />
+    );
+  };
+
+  const renderError = () => {
+    if (!error) return null;
+
+    const isApiKeyError = error.includes('Invalid API Key');
+    const isGenericAiError = error.startsWith('[AI Error]');
+
+    return (
+        <div className={`mt-4 p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-300 text-sm`}>
+            <div className="flex items-start">
+                <ExclamationTriangleIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-red-400"/>
+                <div>
+                    <h4 className="font-bold text-red-200">
+                        {isApiKeyError ? "AI Service Not Configured" : "Generation Failed"}
+                    </h4>
+                    {isApiKeyError ? (
+                        <p className="mt-1">
+                           The application's AI features could not be accessed. This is likely due to a missing or invalid API key in the application's configuration. Please contact the administrator to resolve this issue.
+                        </p>
+                    ) : (
+                        <p className="mt-1 whitespace-pre-wrap">{isGenericAiError ? error.replace('[AI Error]', '').trim() : error}</p>
+                    )}
+                </div>
+            </div>
+        </div>
     );
   };
 
@@ -127,7 +153,7 @@ const NotesView: React.FC = () => {
           <div className="flex-1 flex">
             {renderInput()}
           </div>
-          {error && <p className="text-red-400 mt-4 text-sm whitespace-pre-wrap">{error}</p>}
+          {renderError()}
           <button
             onClick={handleGenerateNotes}
             disabled={(!file && !inputText.trim()) || isLoading}
