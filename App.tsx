@@ -72,7 +72,7 @@ const App: React.FC = () => {
         return <CalendarView events={calendarEvents} />;
       case Page.Summarizer:
         return <SummarizerView />;
-      case Page.Notes:
+      case Page.StudyGuide:
         return <NotesView />;
       case Page.Settings:
         return (

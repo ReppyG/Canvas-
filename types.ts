@@ -35,7 +35,7 @@ export enum Page {
   Courses = 'Courses',
   Calendar = 'Calendar',
   Summarizer = 'Summarizer',
-  Notes = 'Notes',
+  StudyGuide = 'Study Guide',
   Settings = 'Settings',
 }
 

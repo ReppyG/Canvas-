@@ -40,6 +40,10 @@ export const generateText = async (prompt: string): Promise<string> => {
         if (error.message.includes('API key')) {
              return `[AI Error] Invalid API Key: Please ensure your Gemini API key is configured correctly in your deployment settings. The application was unable to authenticate with the provided credentials.`;
         }
+        // Catch rate limit errors and provide a user-friendly message.
+        if (error.message.includes('RESOURCE_EXHAUSTED')) {
+            return `[AI Error] You have exceeded the API request limit for the free tier. Please wait a moment before trying again.`;
+        }
         return `[AI Error] An unexpected error occurred: ${error.message}`;
     }
     return "[AI Error] An unknown error occurred while communicating with the AI. Please check your network connection and API key.";

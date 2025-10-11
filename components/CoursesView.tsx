@@ -1,9 +1,8 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Course, Assignment, AiTutorMessage } from '../types';
 import { format } from 'date-fns';
 import { estimateAssignmentTime, getAssignmentHelp, generateNotes, createTutorChat } from '../services/geminiService';
-import { Chat, GenerateContentResponse } from '@google/genai';
+import { Chat, GenerateContentResponse } from '@google/ai-studio-static';
 import { SparklesIcon, XIcon, ClockIcon, DocumentTextIcon, QuestionMarkCircleIcon, NoteIcon } from './icons/Icons';
 
 const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> = ({ assignment, onClose }) => {
@@ -108,17 +107,14 @@ const AssignmentCard: React.FC<{ assignment: Assignment; onTutorClick: (assignme
     const [isAiResponseVisible, setIsAiResponseVisible] = useState(false);
     const [aiActionType, setAiActionType] = useState<'help' | 'notes' | null>(null);
     const [estimatedTime, setEstimatedTime] = useState('');
-    const [isEstimatingTime, setIsEstimatingTime] = useState(true);
+    const [isEstimatingTime, setIsEstimatingTime] = useState(false);
 
-    useEffect(() => {
-        const fetchTime = async () => {
-            setIsEstimatingTime(true);
-            const time = await estimateAssignmentTime(assignment);
-            setEstimatedTime(time);
-            setIsEstimatingTime(false);
-        };
-        fetchTime();
-    }, [assignment]);
+    const handleEstimateTime = async () => {
+        setIsEstimatingTime(true);
+        const time = await estimateAssignmentTime(assignment);
+        setEstimatedTime(time);
+        setIsEstimatingTime(false);
+    };
 
     const handleAiAction = async (action: 'help' | 'notes') => {
         if (isAiResponseVisible && aiActionType === action) {
@@ -149,13 +145,15 @@ const AssignmentCard: React.FC<{ assignment: Assignment; onTutorClick: (assignme
               <div>
                 <h3 className="font-bold text-lg text-white">{assignment.title}</h3>
                 <p className="text-sm text-gray-400">Due: {format(assignment.dueDate, 'PPp')}</p>
-                 <div className="text-sm text-gray-400 mt-1 flex items-center">
-                  <ClockIcon className="w-4 h-4 mr-1.5 flex-shrink-0" />
+                 <div className="text-sm text-gray-400 mt-1 flex items-center h-5">
+                  {(isEstimatingTime || estimatedTime) && <ClockIcon className="w-4 h-4 mr-1.5 flex-shrink-0" />}
                   {isEstimatingTime ? (
                     <span className="animate-pulse">Estimating time...</span>
-                  ) : (
+                  ) : estimatedTime.startsWith('[AI Error]') ? (
+                    <span className="text-red-400">{estimatedTime.replace('[AI Error]', '').trim()}</span>
+                  ) : estimatedTime ? (
                     <span>Est. Time: {estimatedTime}</span>
-                  )}
+                  ) : null}
                 </div>
               </div>
           </div>
@@ -174,6 +172,10 @@ const AssignmentCard: React.FC<{ assignment: Assignment; onTutorClick: (assignme
           </div>
           
           <div className="mt-4 flex flex-wrap gap-2">
+              <button onClick={handleEstimateTime} className="btn-ai" disabled={isEstimatingTime}>
+                  <ClockIcon className="w-4 h-4" />
+                  {isEstimatingTime ? 'Estimating...' : (estimatedTime ? 'Re-estimate' : 'Estimate Time')}
+              </button>
               <button onClick={() => handleAiAction('help')} className="btn-ai">
                   <QuestionMarkCircleIcon className="w-4 h-4" />
                   Get Help
@@ -209,6 +211,8 @@ const AssignmentCard: React.FC<{ assignment: Assignment; onTutorClick: (assignme
                         <div className="w-5 h-5 mr-2 border-2 border-blue-400 border-dashed rounded-full animate-spin"></div>
                         Generating...
                       </div>
+                  ) : aiResponse.startsWith('[AI Error]') ? (
+                     <div className="text-sm text-red-400 whitespace-pre-wrap">{aiResponse.replace('[AI Error]', '').trim()}</div>
                   ) : (
                      <div className="text-sm text-gray-300 whitespace-pre-wrap prose prose-sm prose-invert max-w-none">{aiResponse}</div>
                   )}

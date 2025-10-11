@@ -1,6 +1,6 @@
 import React from 'react';
 import { Page } from '../types';
-import { HomeIcon, BookOpenIcon, CalendarIcon, DocumentTextIcon, SparklesIcon, NoteIcon, SettingsIcon } from './icons/Icons';
+import { HomeIcon, BookOpenIcon, CalendarIcon, DocumentTextIcon, SparklesIcon, SettingsIcon, BrainIcon } from './icons/Icons';
 
 interface SidebarProps {
   currentPage: Page;
@@ -13,7 +13,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage }) => {
     { page: Page.Courses, icon: <BookOpenIcon />, label: 'Courses' },
     { page: Page.Calendar, icon: <CalendarIcon />, label: 'Calendar' },
     { page: Page.Summarizer, icon: <DocumentTextIcon />, label: 'Summarizer' },
-    { page: Page.Notes, icon: <NoteIcon />, label: 'Notes' },
+    { page: Page.StudyGuide, icon: <BrainIcon />, label: 'Study Guide' },
   ];
 
   return (
