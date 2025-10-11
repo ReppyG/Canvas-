@@ -29,7 +29,13 @@ export const generateText = async (prompt: string): Promise<string> => {
     return response.text;
   } catch (error) {
     console.error("Error generating text:", error);
-    return "An error occurred while communicating with the AI. Please check your API key and try again.";
+    if (error instanceof Error) {
+        if (error.message.includes('API key')) {
+             return `[AI Error] Invalid API Key: Please ensure your Gemini API key is configured correctly in your deployment settings. The application was unable to authenticate with the provided credentials.`;
+        }
+        return `[AI Error] An unexpected error occurred: ${error.message}`;
+    }
+    return "[AI Error] An unknown error occurred while communicating with the AI. Please check your network connection and API key.";
   }
 };
 
@@ -39,7 +45,20 @@ export const summarizeDocument = async (fileContent: string): Promise<string> =>
 };
 
 export const generateNotesFromText = async (text: string): Promise<string> => {
-    const prompt = `As an expert note-taker, generate concise, well-structured notes in markdown format based on the following text. Focus on identifying key concepts, definitions, main arguments, and important examples. Use headings, bullet points, and bold text to organize the information effectively.\n\nText:\n${text}`;
+    const prompt = `Act as an expert academic assistant. Generate a comprehensive, well-structured study guide in markdown format from the following text. The guide should be easy to read and help a student learn the material effectively.
+
+Your study guide should include the following sections:
+- **Executive Summary:** A brief, high-level overview of the entire text.
+- **Key Concepts:** A bulleted list of the most important concepts, terms, or topics, each with a concise explanation.
+- **Main Points:** A more detailed breakdown of the main arguments or sections from the text, using nested bullet points for clarity.
+- **Potential Quiz Questions:** A list of 3-5 questions that would test someone's understanding of the material.
+
+Ensure the formatting is clean and uses markdown elements like headings (#, ##), bold text (**), and lists (-) appropriately.
+
+Here is the text to analyze:
+---
+${text}
+---`;
     return generateText(prompt);
 };
 
