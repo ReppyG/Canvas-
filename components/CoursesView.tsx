@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Course, Assignment, AiTutorMessage } from '../types';
 import { format } from 'date-fns';
@@ -205,8 +206,19 @@ const AssignmentCard: React.FC<{ assignment: Assignment; onTutorClick: (assignme
 };
 
 const CoursesView: React.FC<{ courses: Course[]; assignments: Assignment[] }> = ({ courses, assignments }) => {
-    const [selectedCourse, setSelectedCourse] = useState<Course | null>(courses[0] || null);
+    const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [tutoringAssignment, setTutoringAssignment] = useState<Assignment | null>(null);
+
+    useEffect(() => {
+        // If courses are loaded and either no course is selected OR the selected course is no longer in the list,
+        // default to the first course in the new list. This makes the UI more stable.
+        if (courses.length > 0 && (!selectedCourse || !courses.some(c => c.id === selectedCourse.id))) {
+            setSelectedCourse(courses[0]);
+        } else if (courses.length === 0) {
+            // If the courses list becomes empty (e.g., due to a filter), clear the selection.
+            setSelectedCourse(null);
+        }
+    }, [courses, selectedCourse]);
 
     const filteredAssignments = assignments.filter(a => a.courseId === selectedCourse?.id);
 
