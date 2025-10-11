@@ -13,8 +13,21 @@ const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> =
     const [inputError, setInputError] = useState<string | null>(null);
     const [isShaking, setIsShaking] = useState(false);
     const chat = useMemo(() => createTutorChat(assignment), [assignment]);
+    
+    useEffect(() => {
+        if (!chat) {
+            setMessages([{ role: 'model', text: 'Failed to initialize AI Tutor. The Gemini API key may be missing or invalid in your deployment settings.' }]);
+        }
+    }, [chat]);
 
     const sendMessage = async () => {
+        if (!chat) {
+            setInputError("AI Tutor is not available.");
+            setIsShaking(true);
+            setTimeout(() => setIsShaking(false), 600);
+            return;
+        }
+
         if (!input.trim()) {
             setInputError("Message cannot be empty.");
             setIsShaking(true);
@@ -75,10 +88,11 @@ const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> =
                             if (inputError) setInputError(null);
                         }} 
                         onKeyPress={e => e.key === 'Enter' && sendMessage()} 
-                        placeholder="Ask for help..." 
-                        className={`flex-1 bg-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 text-white transition-shadow ${inputError ? 'ring-2 ring-red-500' : 'focus:ring-blue-500'} ${isShaking ? 'animate-shake' : ''}`}
+                        placeholder={!chat ? "AI Tutor not available" : "Ask for help..."}
+                        disabled={isLoading || !chat}
+                        className={`flex-1 bg-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 text-white transition-shadow disabled:cursor-not-allowed disabled:opacity-50 ${inputError ? 'ring-2 ring-red-500' : 'focus:ring-blue-500'} ${isShaking ? 'animate-shake' : ''}`}
                     />
-                    <button onClick={sendMessage} disabled={isLoading} className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-600">Send</button>
+                    <button onClick={sendMessage} disabled={isLoading || !chat} className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-600">Send</button>
                 </div>
                 {inputError && <p className="text-red-400 text-xs mt-1 ml-1">{inputError}</p>}
             </div>

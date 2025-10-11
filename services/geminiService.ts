@@ -1,21 +1,35 @@
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
-// Fix: Per @google/genai guidelines, initialize the client with the API key from environment variables.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Create a singleton instance that is initialized lazily to prevent app crash on load.
+let ai: GoogleGenAI | null = null;
 const model = "gemini-2.5-flash";
 
+function getClient(): GoogleGenAI {
+    if (ai) {
+        return ai;
+    }
+    
+    // This check prevents a hard crash if the API_KEY is not set.
+    // The error will be caught by the calling functions that use this client.
+    if (!process.env.API_KEY) {
+        throw new Error("Gemini API key is not configured. Please set the API_KEY environment variable in your deployment settings.");
+    }
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return ai;
+}
+
+
 export const generateText = async (prompt: string): Promise<string> => {
-  // Fix: Removed check for hardcoded API key, as it's now handled by environment variables.
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
+    const client = getClient();
+    const response: GenerateContentResponse = await client.models.generateContent({
       model,
       contents: prompt,
     });
     return response.text;
   } catch (error) {
     console.error("Error generating text:", error);
-    // Fix: Per @google/genai guidelines, provide a generic error message that doesn't reference API keys.
-    return "An error occurred while communicating with the AI. Please try again later.";
+    return "An error occurred while communicating with the AI. Please check your API key and try again.";
   }
 };
 
@@ -45,11 +59,17 @@ export const generateNotes = async (assignment: { title: string; description: st
     return generateText(prompt);
 }
 
-export const createTutorChat = (assignment: { title: string; description: string }): Chat => {
-    return ai.chats.create({
-        model,
-        config: {
-            systemInstruction: `You are an encouraging and knowledgeable AI tutor. Your goal is to help the student understand the concepts behind their assignment and guide them to the solution, not to give them the answer directly. Ask guiding questions, break down complex topics, and explain things clearly. The student is working on the following assignment:\n\nTitle: ${assignment.title}\n\nDescription: ${assignment.description}`,
-        },
-    });
+export const createTutorChat = (assignment: { title: string; description: string }): Chat | null => {
+    try {
+        const client = getClient();
+        return client.chats.create({
+            model,
+            config: {
+                systemInstruction: `You are an encouraging and knowledgeable AI tutor. Your goal is to help the student understand the concepts behind their assignment and guide them to the solution, not to give them the answer directly. Ask guiding questions, break down complex topics, and explain things clearly. The student is working on the following assignment:\n\nTitle: ${assignment.title}\n\nDescription: ${assignment.description}`,
+            },
+        });
+    } catch(error) {
+        console.error("Failed to create tutor chat:", error);
+        return null;
+    }
 };
