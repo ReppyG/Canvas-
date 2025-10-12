@@ -18,6 +18,3 @@ View your app in AI Studio: https://ai.studio/apps/drive/1F5OgI3FxrP62yW86oyM3m4
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
-
-
-https://68eaea9cedf97b0009a11fa9--canvaslmspro.netlify.app/

@@ -22,10 +22,20 @@ const fetchFromProxy = async (endpoint: string) => {
     const response = await fetch(url, { headers });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to fetch from proxy: ${response.statusText}`);
+        try {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to fetch from proxy: ${response.statusText}`);
+        } catch (e) {
+             const errorText = await response.text();
+             throw new Error(`Unexpected response from server (status ${response.status}). Please check your Canvas URL. Response: ${errorText.substring(0, 150)}`);
+        }
     }
-    return response.json();
+    
+    try {
+        return await response.json();
+    } catch(e) {
+        throw new Error('Received a successful response from the server, but it was not in the expected format (JSON).');
+    }
 };
 
 export const testConnection = async (canvasUrl: string, apiToken: string): Promise<boolean> => {
@@ -40,11 +50,21 @@ export const testConnection = async (canvasUrl: string, apiToken: string): Promi
     const response = await fetch(url, { headers });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Proxy Error: ${response.statusText}`);
+        try {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Proxy Error: ${response.statusText}`);
+        } catch (e) {
+             const errorText = await response.text();
+             throw new Error(`Unexpected response from server (status ${response.status}). Please check your Canvas URL. Response: ${errorText.substring(0, 150)}`);
+        }
     }
     
-    await response.json();
+    try {
+        await response.json();
+    } catch (e) {
+        throw new Error('Connection test was successful, but the response from Canvas was not in the expected format (JSON).');
+    }
+    
     return true;
 };
 
