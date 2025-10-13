@@ -103,3 +103,23 @@ export const createTutorChat = (assignment: { title: string; description: string
         return null;
     }
 };
+
+export const createGlobalAssistantChat = (context: string): Chat | null => {
+    try {
+        const client = getClient();
+        return client.chats.create({
+            model,
+            config: {
+                systemInstruction: `You are a helpful and friendly Canvas AI assistant. Your role is to help the student with their coursework. Be encouraging and provide clear explanations. Use the following data about the student's current courses and assignments to answer their questions accurately. Do not make up information if it's not in the provided data.
+
+Here is the student's data:
+---
+${context}
+---`,
+            },
+        });
+    } catch(error) {
+        console.error("Failed to create global assistant chat:", error);
+        return null;
+    }
+};

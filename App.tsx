@@ -10,7 +10,8 @@ import SettingsView from './components/SettingsView';
 import { Page } from './types';
 import { useCanvasData } from './hooks/useCanvasData';
 import { useSettings } from './hooks/useSettings';
-import { BellIcon, XIcon } from './components/icons/Icons';
+import { BellIcon, XIcon, SparklesIcon } from './components/icons/Icons';
+import GlobalAiChat from './components/GlobalAiChat';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
@@ -24,6 +25,7 @@ const App: React.FC = () => {
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationTitle, setNotificationTitle] = useState('');
+  const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false);
 
   useEffect(() => {
     if (newAssignments.length > 0) {
@@ -98,6 +100,13 @@ const App: React.FC = () => {
         .animate-slide-in-right {
           animation: slide-in-right 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
         }
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.5s ease-in-out;
+        }
       `}</style>
       <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -138,6 +147,23 @@ const App: React.FC = () => {
               </div>
           </div>
       )}
+
+       {/* Global AI Chat FAB */}
+       <button
+          onClick={() => setIsGlobalChatOpen(true)}
+          className="fixed bottom-8 right-8 bg-blue-600 hover:bg-blue-700 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center transform hover:scale-110 transition-transform duration-200 z-40"
+          aria-label="Open AI Assistant"
+      >
+          <SparklesIcon className="w-8 h-8" />
+      </button>
+
+      {/* Global AI Chat Modal */}
+      <GlobalAiChat 
+          isOpen={isGlobalChatOpen} 
+          onClose={() => setIsGlobalChatOpen(false)}
+          courses={courses}
+          assignments={assignments}
+      />
     </div>
   );
 };

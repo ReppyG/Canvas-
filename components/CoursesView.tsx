@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Course, Assignment, AiTutorMessage } from '../types';
+import { Course, Assignment, AiTutorMessage, Settings } from '../types';
 import { format } from 'date-fns';
 import { estimateAssignmentTime, getAssignmentHelp, generateNotes, createTutorChat } from '../services/geminiService';
-import { Chat, GenerateContentResponse } from '@google/genai';
-import { SparklesIcon, XIcon, ClockIcon, DocumentTextIcon, QuestionMarkCircleIcon, NoteIcon } from './icons/Icons';
+import { Chat } from '@google/genai';
+import { SparklesIcon, XIcon, ClockIcon, DocumentTextIcon, QuestionMarkCircleIcon, NoteIcon, ExternalLinkIcon } from './icons/Icons';
 
 const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> = ({ assignment, onClose }) => {
     const [messages, setMessages] = useState<AiTutorMessage[]>([]);
@@ -108,6 +108,22 @@ const AssignmentCard: React.FC<{ assignment: Assignment; onTutorClick: (assignme
     const [aiActionType, setAiActionType] = useState<'help' | 'notes' | null>(null);
     const [estimatedTime, setEstimatedTime] = useState('');
     const [isEstimatingTime, setIsEstimatingTime] = useState(false);
+    const [canvasLink, setCanvasLink] = useState<string | null>(null);
+
+    useEffect(() => {
+        const SETTINGS_KEY = 'canvasAiAssistantSettings';
+        try {
+            const settingsRaw = localStorage.getItem(SETTINGS_KEY);
+            if (settingsRaw) {
+                const settings: Settings = JSON.parse(settingsRaw);
+                if (settings.canvasUrl && assignment.courseId && assignment.id) {
+                    setCanvasLink(`${settings.canvasUrl}/courses/${assignment.courseId}/assignments/${assignment.id}`);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to parse settings for canvas link", error);
+        }
+    }, [assignment.courseId, assignment.id]);
 
     const handleEstimateTime = async () => {
         setIsEstimatingTime(true);
@@ -156,6 +172,18 @@ const AssignmentCard: React.FC<{ assignment: Assignment; onTutorClick: (assignme
                   ) : null}
                 </div>
               </div>
+              {canvasLink && (
+                  <a 
+                    href={canvasLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 ml-4 inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-400 transition-colors border border-gray-700 hover:border-blue-500/50 bg-gray-900/50 hover:bg-gray-800 px-2.5 py-1.5 rounded-md"
+                    aria-label="View on Canvas"
+                  >
+                     <ExternalLinkIcon className="w-4 h-4" />
+                     View on Canvas
+                  </a>
+              )}
           </div>
           
           <div className="mt-4 pt-4 border-t border-gray-700">
@@ -166,9 +194,10 @@ const AssignmentCard: React.FC<{ assignment: Assignment; onTutorClick: (assignme
                 </h4>
                 <span className="text-sm font-semibold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md">{assignment.points} points</span>
             </div>
-            <div className="prose prose-sm prose-invert max-w-none text-gray-300 whitespace-pre-wrap max-h-40 overflow-y-auto bg-gray-900/50 p-3 rounded-md border border-gray-700">
-                {assignment.description}
-            </div>
+            <div 
+                className="prose prose-sm prose-invert max-w-none text-gray-300 max-h-40 overflow-y-auto bg-gray-900/50 p-3 rounded-md border border-gray-700"
+                dangerouslySetInnerHTML={{ __html: assignment.description }}
+            />
           </div>
           
           <div className="mt-4 flex flex-wrap gap-2">
