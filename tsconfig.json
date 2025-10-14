@@ -14,11 +14,12 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "types": ["chrome"]
   },
   "include": [
-    "./**/*.ts",
-    "./**/*.tsx"
+    "**/*.ts",
+    "**/*.tsx"
   ],
   "exclude": [
     "node_modules",
@@ -26,8 +27,6 @@
     "dist-server",
     "server.ts",
     "netlify",
-    "vite.config.ts",
-    "background.ts",
-    "content.ts"
+    "tsconfig.server.json"
   ]
 }

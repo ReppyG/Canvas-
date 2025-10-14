@@ -1,19 +1,31 @@
-import express from 'express';
+// Fix: Import explicit types from express to resolve type errors.
+import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Fix: Explicitly type app as Express.
+const app: Express = express();
 // Render sets the PORT environment variable.
 const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from the client build directory
+// Fix: Explicitly set root path for static assets to resolve express typing issue.
+app.use('/', express.static(path.join(__dirname, '..', 'dist')));
+
 // Health check endpoint for Render
-app.get('/api/health', (req, res) => {
+// Fix: Add explicit types for req and res to resolve express typing issue.
+app.get('/api/health', (req: Request, res: Response) => {
     res.status(200).send('OK');
 });
 
-app.get('/api/canvas-proxy', async (req, res) => {
+app.get('/api/canvas-proxy', async (req: Request, res: Response) => {
     const endpoint = req.query.endpoint as string;
 
     if (!endpoint) {
@@ -63,6 +75,17 @@ app.get('/api/canvas-proxy', async (req, res) => {
     }
 });
 
+// Add a catch-all route to serve the main index.html file for any non-API routes.
+// This is essential for single-page applications that use client-side routing.
+app.get('*', (req: Request, res: Response) => {
+    if (!req.path.startsWith('/api/')) {
+        res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    } else {
+        // If an unknown API route is hit, send a 404
+        res.status(404).send({ error: 'API route not found' });
+    }
+});
+
 app.listen(port, () => {
-    console.log(`Canvas proxy server listening at http://localhost:${port}`);
+    console.log(`Server listening at http://localhost:${port}`);
 });

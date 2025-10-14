@@ -1,4 +1,4 @@
-// Fix: Add a triple-slash directive to include TypeScript type definitions for the Chrome Extension APIs.
+// Fix: Add a reference to chrome types to resolve 'Cannot find name 'chrome''.
 /// <reference types="chrome" />
 
 import { Course, Assignment, Settings } from '../types';
