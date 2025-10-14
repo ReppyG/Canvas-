@@ -1,4 +1,5 @@
-
+// Fix: Add a triple-slash directive to include TypeScript type definitions for the Chrome Extension APIs.
+/// <reference types="chrome" />
 
 import { useState, useEffect, useCallback } from 'react';
 import { Settings } from '../types';

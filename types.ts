@@ -1,10 +1,5 @@
 // Fix: Add type declarations for Vite's `import.meta.env` to resolve TypeScript errors.
 declare global {
-  // Fix: Add a global declaration for the 'chrome' object to resolve TypeScript errors
-  // when the @types/chrome package is not available. It is placed in `declare global`
-  // because this file is a module (due to having exports).
-  var chrome: any;
-
   interface ImportMeta {
     readonly env: {
       readonly VITE_API_KEY: string;

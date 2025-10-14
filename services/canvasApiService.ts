@@ -1,3 +1,6 @@
+// Fix: Add a triple-slash directive to include TypeScript type definitions for the Chrome Extension APIs.
+/// <reference types="chrome" />
+
 import { Course, Assignment, Settings } from '../types';
 
 const SETTINGS_KEY = 'canvasAiAssistantSettings';

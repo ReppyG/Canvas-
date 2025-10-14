@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
 // Create a singleton instance that is initialized lazily to prevent app crash on load.
@@ -29,7 +28,7 @@ export const generateText = async (prompt: string): Promise<string> => {
       model,
       contents: prompt,
     });
-    return response.text;
+    return response.text ?? '[AI Error] The model returned an empty response.';
   } catch (error) {
     console.error("Error generating text:", error);
     if (error instanceof Error) {

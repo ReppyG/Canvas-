@@ -1,3 +1,5 @@
+// Fix: Add a triple-slash directive to include TypeScript type definitions for the Chrome Extension APIs.
+/// <reference types="chrome" />
 
 const IFRAME_ID = 'canvas-ai-assistant-iframe';
 
