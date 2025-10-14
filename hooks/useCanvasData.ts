@@ -1,3 +1,5 @@
+
+
 import { useState, useEffect } from 'react';
 import { Course, Assignment, CalendarEvent, Settings } from '../types';
 import * as apiService from '../services/canvasApiService';
@@ -31,8 +33,8 @@ export const useCanvasData = (enabled: boolean) => {
         setError(null);
         setNewAssignments([]);
         
-        const settingsRaw = localStorage.getItem(SETTINGS_KEY);
-        const settings: Settings | null = settingsRaw ? JSON.parse(settingsRaw) : null;
+        const settingsData = await chrome.storage.local.get(SETTINGS_KEY);
+        const settings: Settings | null = settingsData[SETTINGS_KEY];
         
         const useSampleData = settings?.sampleDataMode ?? false;
         const service = useSampleData ? mockService : apiService;
@@ -44,20 +46,20 @@ export const useCanvasData = (enabled: boolean) => {
             service.getAssignments(),
         ]);
         
-        // This logic only applies to live data, but is harmless for sample data.
         if (!useSampleData) {
             const newAssignmentIds = new Set(assignmentsData.map(a => a.id));
-            const storedIdsRaw = localStorage.getItem(CANVAS_ASSIGNMENT_IDS_KEY);
+            const storedIdsData = await chrome.storage.local.get(CANVAS_ASSIGNMENT_IDS_KEY);
+            const storedIdsRaw = storedIdsData[CANVAS_ASSIGNMENT_IDS_KEY];
             
             if (storedIdsRaw) {
-                const storedIds = new Set(JSON.parse(storedIdsRaw) as number[]);
+                const storedIds = new Set(storedIdsRaw as number[]);
                 const newlyAdded = assignmentsData.filter(a => !storedIds.has(a.id));
                 if (newlyAdded.length > 0) {
                     setNewAssignments(newlyAdded);
                 }
             }
             if (assignmentsData.length > 0) {
-               localStorage.setItem(CANVAS_ASSIGNMENT_IDS_KEY, JSON.stringify(Array.from(newAssignmentIds)));
+               await chrome.storage.local.set({ [CANVAS_ASSIGNMENT_IDS_KEY]: Array.from(newAssignmentIds) });
             }
         }
         

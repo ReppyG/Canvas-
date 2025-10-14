@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { AiTutorMessage, Course, Assignment } from '../types';
 import { createGlobalAssistantChat } from '../services/geminiService';

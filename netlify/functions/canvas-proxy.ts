@@ -1,3 +1,4 @@
+
 // This is a Netlify Function that acts as a secure proxy for the Canvas API.
 // It lives in the `netlify/functions` directory.
 

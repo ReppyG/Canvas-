@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Course, Assignment, AiTutorMessage, Settings } from '../types';
 import { format } from 'date-fns';
@@ -112,17 +114,22 @@ const AssignmentCard: React.FC<{ assignment: Assignment; onTutorClick: (assignme
 
     useEffect(() => {
         const SETTINGS_KEY = 'canvasAiAssistantSettings';
-        try {
-            const settingsRaw = localStorage.getItem(SETTINGS_KEY);
-            if (settingsRaw) {
-                const settings: Settings = JSON.parse(settingsRaw);
-                if (settings.canvasUrl && assignment.courseId && assignment.id) {
-                    setCanvasLink(`${settings.canvasUrl}/courses/${assignment.courseId}/assignments/${assignment.id}`);
+        const loadSettings = async () => {
+            try {
+                if (typeof chrome !== "undefined" && chrome.storage) {
+                    const data = await chrome.storage.local.get(SETTINGS_KEY);
+                    if (data[SETTINGS_KEY]) {
+                        const settings: Settings = data[SETTINGS_KEY];
+                        if (settings.canvasUrl && assignment.courseId && assignment.id) {
+                            setCanvasLink(`${settings.canvasUrl}/courses/${assignment.courseId}/assignments/${assignment.id}`);
+                        }
+                    }
                 }
+            } catch (error) {
+                console.error("Failed to parse settings for canvas link", error);
             }
-        } catch (error) {
-            console.error("Failed to parse settings for canvas link", error);
-        }
+        };
+        loadSettings();
     }, [assignment.courseId, assignment.id]);
 
     const handleEstimateTime = async () => {

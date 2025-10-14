@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
 // Create a singleton instance that is initialized lazily to prevent app crash on load.

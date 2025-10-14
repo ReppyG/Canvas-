@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -26,6 +27,14 @@ const App: React.FC = () => {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationTitle, setNotificationTitle] = useState('');
   const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false);
+
+  // Check if the app is running inside an iframe to conditionally show the close button.
+  const isIframe = window.self !== window.top;
+
+  const handleClose = () => {
+    // Post a message to the parent window (the content script) to close the iframe.
+    window.parent.postMessage({ type: 'CLOSE_CANVAS_AI_IFRAME' }, '*');
+  };
 
   useEffect(() => {
     if (newAssignments.length > 0) {
@@ -91,7 +100,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-900 text-gray-100 font-sans">
+    <div className="flex h-screen bg-gray-900 text-gray-100 font-sans relative">
       <style>{`
         @keyframes slide-in-right {
           from { transform: translateX(100%); opacity: 0; }
@@ -108,6 +117,17 @@ const App: React.FC = () => {
             animation: fade-in 0.5s ease-in-out;
         }
       `}</style>
+
+      {isIframe && (
+        <button
+          onClick={handleClose}
+          className="absolute top-5 right-5 bg-gray-700/50 hover:bg-gray-700 text-gray-300 hover:text-white w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center transition-all z-50"
+          aria-label="Close Assistant"
+        >
+            <XIcon className="w-6 h-6" />
+        </button>
+      )}
+
       <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header courses={courses} assignments={assignments} connectionStatus={connectionStatus} />

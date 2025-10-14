@@ -1,0 +1,42 @@
+
+{
+  "manifest_version": 3,
+  "name": "Canvas AI Assistant",
+  "version": "1.0",
+  "description": "An intelligent dashboard for Canvas LMS that uses AI to help you manage assignments and stay on top of your coursework with browser notifications.",
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://*.instructure.com/*"
+  ],
+  "action": {
+    "default_title": "Toggle Canvas AI Assistant"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.instructure.com/*"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "index.html",
+        "index.js"
+      ],
+      "matches": [
+        "https://*.instructure.com/*"
+      ]
+    }
+  ]
+}

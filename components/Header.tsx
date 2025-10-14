@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { generateText } from '../services/geminiService';
 import { SearchIcon, SparklesIcon, ExclamationTriangleIcon } from './icons/Icons';
@@ -76,7 +77,7 @@ const Header: React.FC<HeaderProps> = ({ courses, assignments, connectionStatus 
             {connectionStatus === 'sample' && (
                 <div className="bg-yellow-600/50 text-yellow-200 text-center text-xs py-1.5 px-4 border-b border-yellow-700/50 flex items-center justify-center">
                     <ExclamationTriangleIcon className="w-4 h-4 inline-block mr-2 flex-shrink-0" />
-                    <span>Viewing sample data. Live connection failed due to browser security (CORS).</span>
+                    <span>Viewing sample data. Could not establish a live connection to Canvas.</span>
                 </div>
             )}
             <header className="h-20 bg-gray-900 border-b border-gray-800 flex items-center px-8">

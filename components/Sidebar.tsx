@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Page } from '../types';
 import { HomeIcon, BookOpenIcon, CalendarIcon, DocumentTextIcon, SparklesIcon, SettingsIcon, BrainIcon } from './icons/Icons';

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Settings } from '../types';
 import { testConnection } from '../services/canvasApiService';
@@ -70,7 +71,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
         } catch (err) {
             setTestStatus('error');
             if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
-                 setTestMessage('Connection failed. This might be a browser security (CORS) issue, or the proxy could not be reached. Check the browser console for more details.');
+                 setTestMessage('Connection failed. This might be a browser security (CORS) issue. Please ensure your extension has permissions for the Canvas URL.');
             } else if (err instanceof Error) {
                  setTestMessage(`Connection failed: ${err.message}`);
             } else {
@@ -82,8 +83,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
     const handleProceedWithSample = () => {
         onEnableSampleDataMode();
     };
-
-    const isCorsError = testStatus === 'error' && testMessage.includes('CORS');
 
     return (
         <div className="animate-fade-in max-w-2xl mx-auto">
@@ -114,7 +113,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                                 type="url"
                                 id="canvas-url"
                                 value={canvasUrl}
-                                onChange={(e) => { setCanvasUrl(e.target.value); setDisplayError(null); }}
+                                onChange={(e) => { setCanvasUrl(e.target.value); setDisplayError(null); setTestStatus('idle'); }}
                                 placeholder="yourschool.instructure.com"
                                 required
                                 className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -126,7 +125,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                                 type="password"
                                 id="api-token"
                                 value={apiToken}
-                                onChange={(e) => { setApiToken(e.target.value); setDisplayError(null); }}
+                                onChange={(e) => { setApiToken(e.target.value); setDisplayError(null); setTestStatus('idle'); }}
                                 placeholder="Enter your generated token"
                                 required
                                 className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -134,22 +133,20 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                         </div>
                     </div>
                     
-                    {testStatus !== 'idle' && !isCorsError && (
-                        <div className={`mt-4 p-3 rounded-md text-sm ${
-                            testStatus === 'success' ? 'bg-green-500/20 text-green-300' :
-                            testStatus === 'error' ? 'bg-red-500/20 text-red-300' : ''
-                        }`}>
+                    {testStatus === 'success' && (
+                        <div className="mt-4 p-3 rounded-md text-sm bg-green-500/20 text-green-300">
                             {testMessage}
                         </div>
                     )}
 
-                    {(testStatus === 'error') && (
+                    {testStatus === 'error' && (
                         <div className="mt-6 p-4 rounded-lg bg-yellow-900/50 border border-yellow-700 text-yellow-300 text-sm">
                             <div className="flex items-start">
                                 <ExclamationTriangleIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-yellow-400"/>
                                 <div>
-                                    <h4 className="font-bold text-yellow-200">Live Data Unavailable?</h4>
-                                    <p className="mt-1">If the connection test fails, you can still explore the app's features with sample data.</p>
+                                    <h4 className="font-bold text-yellow-200">Connection Test Failed</h4>
+                                    <p className="mt-1">{testMessage}</p>
+                                    <p className="mt-3">If the connection test fails, you can still explore the app's features with sample data.</p>
                                     <button
                                         type="button"
                                         onClick={handleProceedWithSample}

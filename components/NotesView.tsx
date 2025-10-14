@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { generateNotesFromText } from '../services/geminiService';
 import { SparklesIcon, UploadIcon, DocumentTextIcon, ClipboardIcon, ExclamationTriangleIcon } from './icons/Icons';
