@@ -9,11 +9,13 @@ export async function apiFetch(targetUrl, options = {}) {
     }
   }
 
-  const response = await fetch(`${proxyUrl}?url=${encodeURIComponent(targetUrl)}`, {
-    method: options.method || "GET",
-    headers: safeHeaders,
-    body: options.method !== "GET" ? JSON.stringify(options.body) : undefined,
-  });
+  import { apiFetch } from "./apiFetch"; // adjust path if needed
+
+const res = await apiFetch("https://api.example.com/data", {
+  method: "GET",
+  headers: { "Authorization": `Bearer ${token}` }
+});
+
 
   const contentType = response.headers.get("content-type");
   if (contentType?.includes("application/json")) return response.json();
