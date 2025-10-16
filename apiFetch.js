@@ -1,7 +1,6 @@
 export async function apiFetch(targetUrl, options = {}) {
   const proxyUrl = import.meta.env.VITE_PROXY_URL;
 
-  // Encode headers safely
   const safeHeaders = {};
   if (options.headers) {
     for (const [key, value] of Object.entries(options.headers)) {
@@ -9,19 +8,17 @@ export async function apiFetch(targetUrl, options = {}) {
     }
   }
 
-  import { apiFetch } from "./apiFetch"; // adjust path if needed
+  const response = await fetch(`${proxyUrl}?url=${encodeURIComponent(targetUrl)}`, {
+    method: options.method || "GET",
+    headers: safeHeaders,
+    body: options.method !== "GET" ? JSON.stringify(options.body) : undefined,
+  });
 
-const res = await apiFetch("https://api.example.com/data", {
-  method: "GET",
-  headers: { "Authorization": `Bearer ${token}` }
-});
-
-
-  const contentType = response.headers.get("content-type");
-if (contentType?.includes("application/json")) {
-  const text = await response.text();   // read once
-  return JSON.parse(text);               // parse manually
-} else {
-  return await response.text();
+  // Read body only once
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
-
