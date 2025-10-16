@@ -18,6 +18,10 @@ const res = await apiFetch("https://api.example.com/data", {
 
 
   const contentType = response.headers.get("content-type");
-  if (contentType?.includes("application/json")) return response.json();
-  return response.text();
+if (contentType?.includes("application/json")) {
+  const text = await response.text();   // read once
+  return JSON.parse(text);               // parse manually
+} else {
+  return await response.text();
 }
+
