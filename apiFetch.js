@@ -8,8 +8,10 @@ export async function apiFetch(targetUrl, options = {}) {
     }
   }
 
-  const response = await fetch(`${proxyUrl}?url=${encodeURIComponent(targetUrl)}`, {
-    method: options.method || "GET",
+  import { apiFetch } from "./api"; // adjust path
+
+const res = await apiFetch("https://api.example.com/data", { method: "GET" });
+
     headers: safeHeaders,
     body: options.method !== "GET" ? JSON.stringify(options.body) : undefined,
   });
