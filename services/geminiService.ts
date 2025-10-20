@@ -1,125 +1,270 @@
-import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
-// Create a singleton instance that is initialized lazily to prevent app crash on load.
+// Fix: Import Chat type.
+import { GoogleGenAI, GenerateContentResponse, Type, Chat } from "@google/genai";
+import { Assignment, StudyPlan, Summary, ChatMessage } from "../types";
+
 let ai: GoogleGenAI | null = null;
-const model = "gemini-2.5-flash";
+const studyPlanModel = "gemini-2.5-pro";
+const summaryModel = "gemini-2.5-pro";
+const tutorModel = "gemini-2.5-flash";
 
 function getClient(): GoogleGenAI {
-    if (ai) {
-        return ai;
-    }
-    
-    // Vite exposes environment variables on the `import.meta.env` object.
-    // Variables must be prefixed with `VITE_` to be exposed to the client.
-    const apiKey = import.meta.env.VITE_API_KEY;
-
+    if (ai) return ai;
+    // Fix: Use process.env.API_KEY as per guidelines and to fix build error.
+    const apiKey = process.env.API_KEY;
     if (!apiKey) {
-        throw new Error("Gemini API key is not configured. Please set the VITE_API_KEY environment variable.");
+        throw new Error("Gemini API key is not configured. Please set the API_KEY environment variable.");
     }
     ai = new GoogleGenAI({ apiKey });
     return ai;
 }
 
-
-export const generateText = async (prompt: string): Promise<string> => {
-  try {
-    const client = getClient();
-    const response: GenerateContentResponse = await client.models.generateContent({
-      model,
-      contents: prompt,
-    });
-    return response.text ?? '[AI Error] The model returned an empty response.';
-  } catch (error) {
-    console.error("Error generating text:", error);
+const handleApiError = (error: unknown) : never => {
+    console.error("Error communicating with Gemini API:", error);
     if (error instanceof Error) {
-        // Catch the specific "not configured" error from getClient()
-        if (error.message.includes('not configured')) {
-             return `[AI Error] ${error.message}`;
-        }
-        // Catch errors from the SDK which may indicate an invalid key
         if (error.message.includes('API key')) {
-             return `[AI Error] Invalid API Key: Please ensure your Gemini API key is configured correctly in your deployment settings. The application was unable to authenticate with the provided credentials.`;
+             throw new Error(`[AI Error] Invalid API Key: Please ensure your Gemini API key is configured correctly.`);
         }
-        // Catch rate limit errors and provide a user-friendly message.
         if (error.message.includes('RESOURCE_EXHAUSTED')) {
-            return `[AI Error] You have exceeded the API request limit for the free tier. Please wait a moment before trying again.`;
+            throw new Error(`[AI Error] You have exceeded the API request limit. Please wait a moment before trying again.`);
         }
-        return `[AI Error] An unexpected error occurred: ${error.message}`;
+        throw new Error(`[AI Error] An unexpected error occurred: ${error.message}`);
     }
-    return "[AI Error] An unknown error occurred while communicating with the AI. Please check your network connection and API key.";
-  }
-};
-
-export const summarizeDocument = async (fileContent: string): Promise<string> => {
-    const prompt = `Summarize the following document into key bullet points and a concise concluding paragraph. Here is the document content:\n\n${fileContent}`;
-    return generateText(prompt);
-};
-
-export const generateNotesFromText = async (text: string): Promise<string> => {
-    const prompt = `Act as an expert academic assistant. Generate a comprehensive, well-structured study guide in markdown format from the following text. The guide should be easy to read and help a student learn the material effectively.
-
-Your study guide should include the following sections:
-- **Executive Summary:** A brief, high-level overview of the entire text.
-- **Key Concepts:** A bulleted list of the most important concepts, terms, or topics, each with a concise explanation.
-- **Main Points:** A more detailed breakdown of the main arguments or sections from the text, using nested bullet points for clarity.
-- **Potential Quiz Questions:** A list of 3-5 questions that would test someone's understanding of the material.
-
-Ensure the formatting is clean and uses markdown elements like headings (#, ##), bold text (**), and lists (-) appropriately.
-
-Here is the text to analyze:
----
-${text}
----`;
-    return generateText(prompt);
-};
-
-export const estimateAssignmentTime = async (assignment: { title: string; description: string }): Promise<string> => {
-    const prompt = `As an expert academic planner, estimate the time required for a typical university student to complete this assignment. Provide a realistic time range (e.g., 3-5 hours). Consider the title and description.\n\nTitle: ${assignment.title}\n\nDescription: ${assignment.description}`;
-    return generateText(prompt);
-};
-
-
-export const getAssignmentHelp = async (assignment: { title: string; description: string }): Promise<string> => {
-    const prompt = `As a helpful teaching assistant, provide guidance, key concepts to research, and a possible structure to approach the following assignment. Do not write the assignment or provide direct answers. Focus on empowering the student to learn.\n\nTitle: ${assignment.title}\n\nDescription: ${assignment.description}`;
-    return generateText(prompt);
-};
-
-export const generateNotes = async (assignment: { title: string; description: string }): Promise<string> => {
-    const prompt = `As an expert note-taker, generate concise, well-structured notes in markdown format based on the key topics in this assignment description. Focus on definitions, key concepts, and important questions to consider.\n\nTitle: ${assignment.title}\n\nDescription: ${assignment.description}`;
-    return generateText(prompt);
+    throw new Error("[AI Error] An unknown error occurred while communicating with the AI.");
 }
 
-export const createTutorChat = (assignment: { title: string; description: string }): Chat | null => {
+
+export const generateStudyPlan = async (assignment: Assignment): Promise<StudyPlan | null> => {
+    const client = getClient();
+    const daysUntilDue = assignment.due_at ? Math.ceil((new Date(assignment.due_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 'N/A';
+
+    const prompt = `You are an expert academic advisor. Create a detailed study plan for this assignment:
+Assignment: ${assignment.name}
+Course: ${assignment.courseName}
+Due Date: ${assignment.due_at ? new Date(assignment.due_at).toLocaleDateString() : 'N/A'}
+Days Until Due: ${daysUntilDue}
+Description: ${assignment.description || 'No description provided'}
+Points: ${assignment.points_possible || 'N/A'}
+Create a JSON study plan. Make it practical, actionable, and tailored to the time available. Output ONLY the JSON object.`;
+
+    const schema: any = {
+        type: Type.OBJECT,
+        properties: {
+            title: { type: Type.STRING },
+            estimatedHours: { type: Type.NUMBER },
+            steps: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        order: { type: Type.INTEGER },
+                        title: { type: Type.STRING },
+                        description: { type: Type.STRING },
+                        estimatedMinutes: { type: Type.INTEGER },
+                        priority: { type: Type.STRING, enum: ['high', 'medium', 'low'] },
+                        resources: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    },
+                    required: ['order', 'title', 'description', 'estimatedMinutes', 'priority']
+                }
+            },
+            milestones: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        name: { type: Type.STRING },
+                        completionPercentage: { type: Type.INTEGER },
+                        description: { type: Type.STRING }
+                    },
+                    required: ['name', 'completionPercentage', 'description']
+                }
+            }
+        },
+        required: ['title', 'estimatedHours', 'steps', 'milestones']
+    };
+
+    try {
+        const response = await client.models.generateContent({
+            model: studyPlanModel,
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: schema }
+        });
+        return JSON.parse(response.text) as StudyPlan;
+    } catch(error) {
+        handleApiError(error);
+    }
+};
+
+export const generateSummary = async (content: string): Promise<Summary | null> => {
+    const client = getClient();
+    const prompt = `You are an expert educator. Summarize this educational content in a structured way.
+Content to summarize:
+${content}
+Output ONLY a valid JSON object matching the provided schema.`;
+
+    const schema: any = {
+        type: Type.OBJECT,
+        properties: {
+            title: { type: Type.STRING },
+            mainTopics: { type: Type.ARRAY, items: { type: Type.STRING }},
+            keyPoints: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        concept: { type: Type.STRING },
+                        explanation: { type: Type.STRING },
+                        importance: { type: Type.STRING, enum: ['critical', 'important', 'supplementary'] }
+                    },
+                    required: ['concept', 'explanation', 'importance']
+                }
+            },
+            definitions: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: { term: { type: Type.STRING }, definition: { type: Type.STRING }},
+                    required: ['term', 'definition']
+                }
+            },
+            examples: { type: Type.ARRAY, items: { type: Type.STRING }},
+            studyTips: { type: Type.ARRAY, items: { type: Type.STRING }},
+        },
+        required: ['title', 'mainTopics', 'keyPoints', 'definitions', 'examples', 'studyTips']
+    };
+    
+    try {
+        const response = await client.models.generateContent({
+            model: summaryModel,
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: schema }
+        });
+        return JSON.parse(response.text) as Summary;
+    } catch(error) {
+        handleApiError(error);
+    }
+};
+
+
+export const getTutorResponse = async (history: ChatMessage[], newMessage: string): Promise<string> => {
+    const client = getClient();
+    const chat = client.chats.create({
+        model: tutorModel,
+        config: {
+            systemInstruction: `You are a patient, knowledgeable tutor helping a student. Use the Socratic method when appropriate, encourage critical thinking, and never give direct answers to homework. Be supportive and encouraging.`
+        },
+        history: history.map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{text: m.content}]
+        }))
+    });
+
+    try {
+        const response = await chat.sendMessage({ message: newMessage });
+        return response.text;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// Fix: Add missing generateText function
+export const generateText = async (prompt: string): Promise<string> => {
+    const client = getClient();
+    try {
+        const response = await client.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        return response.text;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// Fix: Add missing summarizeDocument function
+export const summarizeDocument = async (content: string): Promise<string> => {
+    const client = getClient();
+    const prompt = `Summarize this document concisely:\n\n${content}`;
+    try {
+        const response = await client.models.generateContent({
+            model: summaryModel,
+            contents: prompt,
+        });
+        return response.text;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// Fix: Add missing generateNotesFromText function
+export const generateNotesFromText = async (content: string): Promise<string> => {
+    const client = getClient();
+    const prompt = `You are an expert student. Create a structured study guide from the following text. Use markdown for formatting, including headings, bullet points, and bold text for key terms.
+    Content to process:
+    ${content}`;
+    try {
+        const response = await client.models.generateContent({
+            model: summaryModel, // "gemini-2.5-pro"
+            contents: prompt,
+        });
+        return response.text;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// Fix: Add missing estimateAssignmentTime function
+export const estimateAssignmentTime = async (assignment: Assignment): Promise<string> => {
+    const client = getClient();
+    const prompt = `Based on the following assignment details, estimate the time required to complete it. Provide a concise estimate like "2-3 hours" or "45 minutes".
+    Assignment: ${assignment.name}
+    Description: ${assignment.description || 'No description provided.'}
+    Points: ${assignment.points_possible || 'N/A'}`;
+
+    try {
+        const response = await client.models.generateContent({
+            model: tutorModel, // flash for speed
+            contents: prompt,
+        });
+        return response.text.trim();
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// Fix: Add missing createTutorChat function
+export const createTutorChat = (assignment: Assignment): Chat | null => {
     try {
         const client = getClient();
-        return client.chats.create({
-            model,
+        const chat = client.chats.create({
+            model: tutorModel,
             config: {
-                systemInstruction: `You are an encouraging and knowledgeable AI tutor. Your goal is to help the student understand the concepts behind their assignment and guide them to the solution, not to give them the answer directly. Ask guiding questions, break down complex topics, and explain things clearly. The student is working on the following assignment:\n\nTitle: ${assignment.title}\n\nDescription: ${assignment.description}`,
+                systemInstruction: `You are a patient, knowledgeable tutor helping a student with a specific assignment.
+                Assignment: ${assignment.name}
+                Description: ${assignment.description || 'No description provided.'}
+                Use the Socratic method when appropriate, encourage critical thinking, and never give direct answers to homework. Be supportive and encouraging.`
             },
         });
-    } catch(error) {
-        console.error("Failed to create tutor chat:", error);
+        return chat;
+    } catch (error) {
+        console.error("Failed to create chat session:", error);
         return null;
     }
 };
 
+// Fix: Add missing createGlobalAssistantChat function
 export const createGlobalAssistantChat = (context: string): Chat | null => {
     try {
         const client = getClient();
-        return client.chats.create({
-            model,
+        const chat = client.chats.create({
+            model: tutorModel, // "gemini-2.5-flash"
             config: {
-                systemInstruction: `You are a helpful and friendly Canvas AI assistant. Your role is to help the student with their coursework. Be encouraging and provide clear explanations. Use the following data about the student's current courses and assignments to answer their questions accurately. Do not make up information if it's not in the provided data.
-
-Here is the student's data:
----
-${context}
----`,
+                systemInstruction: `You are a helpful AI assistant for a student. You have access to their course and assignment data to answer questions. Be concise and helpful. Here is the student's data: ${context}`
             },
         });
-    } catch(error) {
-        console.error("Failed to create global assistant chat:", error);
+        return chat;
+    } catch (error) {
+        console.error("Failed to create chat session:", error);
         return null;
     }
 };

@@ -1,5 +1,5 @@
-// Fix: Add a reference to chrome types to resolve 'Cannot find name 'chrome''.
-/// <reference types="chrome" />
+// Fix: Declared 'chrome' as 'any' to resolve type errors when @types/chrome is not available.
+declare const chrome: any;
 
 const IFRAME_ID = 'canvas-ai-assistant-iframe';
 

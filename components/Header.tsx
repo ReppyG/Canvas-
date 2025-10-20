@@ -1,12 +1,14 @@
 
+
 import React, { useState } from 'react';
+// Fix: Import missing generateText function
 import { generateText } from '../services/geminiService';
+// Fix: Import missing icons
 import { SearchIcon, SparklesIcon, ExclamationTriangleIcon } from './icons/Icons';
-import { Course, Assignment } from '../types';
+import { Assignment } from '../types';
 import { format, isToday, isTomorrow } from 'date-fns';
 
 interface HeaderProps {
-  courses: Course[];
   assignments: Assignment[];
   connectionStatus: 'live' | 'sample' | 'error';
 }
@@ -16,27 +18,33 @@ const answerWithCanvasData = (term: string, assignments: Assignment[]): string |
 
     // Check if the query is about a specific assignment
     for (const assignment of assignments) {
-        const lowerTitle = assignment.title.toLowerCase();
+        // Fix: Use 'name' property instead of 'title'
+        const lowerTitle = assignment.name.toLowerCase();
         if (lowerTerm.includes(lowerTitle)) {
             if (lowerTerm.includes('due') || lowerTerm.includes('when')) {
-                return `The due date for "${assignment.title}" is ${format(assignment.dueDate, 'PPp')}.`;
+                // Fix: Use 'due_at' property and parse it
+                return `The due date for "${assignment.name}" is ${format(new Date(assignment.due_at!), 'PPp')}.`;
             }
             if (lowerTerm.includes('about') || lowerTerm.includes('description')) {
-                return `Here is the description for "${assignment.title}":\n\n${assignment.description}`;
+                return `Here is the description for "${assignment.name}":\n\n${assignment.description}`;
             }
             if (lowerTerm.includes('points')) {
-                return `The assignment "${assignment.title}" is worth ${assignment.points} points.`;
+                // Fix: Use 'points_possible' property
+                return `The assignment "${assignment.name}" is worth ${assignment.points_possible} points.`;
             }
-            return `Found details for "${assignment.title}":\n- Due Date: ${format(assignment.dueDate, 'PPp')}\n- Points: ${assignment.points}`;
+            // Fix: Use correct properties
+            return `Found details for "${assignment.name}":\n- Due Date: ${format(new Date(assignment.due_at!), 'PPp')}\n- Points: ${assignment.points_possible}`;
         }
     }
 
     // Check for general questions about due dates
     if (lowerTerm.includes('what is due')) {
-        const dueAssignments = assignments.filter(a => isToday(a.dueDate) || isTomorrow(a.dueDate));
+        // Fix: Use 'due_at' and parse it
+        const dueAssignments = assignments.filter(a => a.due_at && (isToday(new Date(a.due_at)) || isTomorrow(new Date(a.due_at))));
         if (dueAssignments.length > 0) {
             let response = "Here are your upcoming deadlines:\n";
-            response += dueAssignments.map(a => `- "${a.title}" is due ${isToday(a.dueDate) ? 'today' : 'tomorrow'} at ${format(a.dueDate, 'p')}.`).join('\n');
+            // Fix: Use correct properties and parse date
+            response += dueAssignments.map(a => `- "${a.name}" is due ${isToday(new Date(a.due_at!)) ? 'today' : 'tomorrow'} at ${format(new Date(a.due_at!), 'p')}.`).join('\n');
             return response;
         } else {
             return "You have no assignments due today or tomorrow. Great job!";
@@ -46,7 +54,7 @@ const answerWithCanvasData = (term: string, assignments: Assignment[]): string |
     return null; // No specific answer found in local data
 };
 
-const Header: React.FC<HeaderProps> = ({ courses, assignments, connectionStatus }) => {
+const Header: React.FC<HeaderProps> = ({ assignments, connectionStatus }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [searchResult, setSearchResult] = useState('');
@@ -66,9 +74,14 @@ const Header: React.FC<HeaderProps> = ({ courses, assignments, connectionStatus 
             setSearchResult(canvasAnswer);
             setIsSearching(false);
         } else {
-            const result = await generateText(`Answer the following question: ${searchTerm}`);
-            setSearchResult(result);
-            setIsSearching(false);
+            try {
+                const result = await generateText(`Answer the following question: ${searchTerm}`);
+                setSearchResult(result);
+            } catch (err: any) {
+                setSearchResult(err.message || 'Failed to get AI response.');
+            } finally {
+                setIsSearching(false);
+            }
         }
     };
 
@@ -80,7 +93,7 @@ const Header: React.FC<HeaderProps> = ({ courses, assignments, connectionStatus 
                     <span>Viewing sample data. Could not establish a live connection to Canvas.</span>
                 </div>
             )}
-            <header className="h-20 bg-gray-900 border-b border-gray-800 flex items-center px-8">
+            <header className="h-20 bg-slate-900 border-b border-gray-800 flex items-center px-8">
                 <div className="flex-1 relative">
                     <form onSubmit={handleSearch}>
                         <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />

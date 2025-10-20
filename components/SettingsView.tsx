@@ -1,7 +1,11 @@
 
+
 import React, { useState, useEffect } from 'react';
+// Fix: Import missing Settings type
 import { Settings } from '../types';
+// Fix: Import missing testConnection function
 import { testConnection } from '../services/canvasApiService';
+// Fix: Import missing icon
 import { ExclamationTriangleIcon } from './icons/Icons';
 
 interface SettingsViewProps {

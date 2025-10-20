@@ -1,8 +1,8 @@
-// Fix: Add a reference to chrome types to resolve 'Cannot find name 'chrome''.
-/// <reference types="chrome" />
 
 import { useState, useEffect, useCallback } from 'react';
+// Fix: Import missing Settings type
 import { Settings } from '../types';
+import { storage } from '../services/storageService';
 
 const SETTINGS_KEY = 'canvasAiAssistantSettings';
 const defaultSettings: Settings = { canvasUrl: '', apiToken: '', sampleDataMode: false };
@@ -13,57 +13,35 @@ export const useSettings = () => {
 
     useEffect(() => {
         const loadSettings = async () => {
-            try {
-                if (typeof chrome !== "undefined" && chrome.storage) {
-                    const data = await chrome.storage.local.get(SETTINGS_KEY);
-                    if (data[SETTINGS_KEY]) {
-                        const parsed = data[SETTINGS_KEY];
-                        setSettings(parsed);
-                        setIsConfigured(!!(parsed.canvasUrl && parsed.apiToken));
-                    } else {
-                        setSettings(defaultSettings);
-                        setIsConfigured(false);
-                    }
-                } else {
-                     setSettings(defaultSettings);
-                }
-            } catch (error) {
-                console.error("Failed to load settings from chrome.storage.local", error);
+            const storedSettings = await storage.get<Settings>(SETTINGS_KEY);
+            if (storedSettings) {
+                setSettings(storedSettings);
+                setIsConfigured(!!(storedSettings.canvasUrl && storedSettings.apiToken));
+            } else {
                 setSettings(defaultSettings);
+                setIsConfigured(false);
             }
         };
         loadSettings();
     }, []);
 
     const saveSettings = useCallback(async (newSettings: Settings) => {
-        try {
-            await chrome.storage.local.set({ [SETTINGS_KEY]: newSettings });
-            setSettings(newSettings);
-            setIsConfigured(!!(newSettings.canvasUrl && newSettings.apiToken));
-        } catch (error) {
-            console.error("Failed to save settings to chrome.storage.local", error);
-        }
+        await storage.set(SETTINGS_KEY, newSettings);
+        setSettings(newSettings);
+        setIsConfigured(!!(newSettings.canvasUrl && newSettings.apiToken));
     }, []);
 
     const clearSettings = useCallback(async () => {
-        try {
-            await chrome.storage.local.remove(SETTINGS_KEY);
-            setSettings(defaultSettings);
-            setIsConfigured(false);
-        } catch (error) {
-            console.error("Failed to clear settings from chrome.storage.local", error);
-        }
+        await storage.remove(SETTINGS_KEY);
+        setSettings(defaultSettings);
+        setIsConfigured(false);
     }, []);
 
-    const enableSampleDataMode = useCallback(() => {
-        setSettings(prevSettings => {
-            const currentSettings = prevSettings || defaultSettings;
-            const newSettings = { ...currentSettings, sampleDataMode: true };
-            if (typeof chrome !== "undefined" && chrome.storage) {
-                chrome.storage.local.set({ [SETTINGS_KEY]: newSettings });
-            }
-            return newSettings;
-        });
+    const enableSampleDataMode = useCallback(async () => {
+        const currentSettings = (await storage.get<Settings>(SETTINGS_KEY)) || defaultSettings;
+        const newSettings = { ...currentSettings, sampleDataMode: true };
+        await storage.set(SETTINGS_KEY, newSettings);
+        setSettings(newSettings);
     }, []);
 
 

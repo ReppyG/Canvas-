@@ -1,7 +1,10 @@
 
 
+
 import React, { useState, useCallback } from 'react';
+// Fix: Import missing summarizeDocument function
 import { summarizeDocument } from '../services/geminiService';
+// Fix: Import missing UploadIcon
 import { SparklesIcon, UploadIcon } from './icons/Icons';
 
 const SummarizerView: React.FC = () => {
@@ -32,9 +35,9 @@ const SummarizerView: React.FC = () => {
       const fileContent = await file.text();
       const result = await summarizeDocument(fileContent);
       setSummary(result);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setError('Failed to read or summarize the file. Please try again with a plain text file.');
+      setError(e.message || 'Failed to read or summarize the file. Please try again with a plain text file.');
     } finally {
       setIsLoading(false);
     }

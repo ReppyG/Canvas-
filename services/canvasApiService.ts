@@ -1,103 +1,115 @@
-// Fix: Add a reference to chrome types to resolve 'Cannot find name 'chrome''.
-/// <reference types="chrome" />
 
+// Fix: Import Settings type
 import { Course, Assignment, Settings } from '../types';
 
-const SETTINGS_KEY = 'canvasAiAssistantSettings';
-
-const getSettings = async (): Promise<Settings> => {
-    const data = await chrome.storage.local.get(SETTINGS_KEY);
-    const settings = data[SETTINGS_KEY];
-    if (!settings) {
-        throw new Error('Canvas API credentials are not configured.');
-    }
-    return settings;
-};
-
-const fetchFromCanvas = async (endpoint: string, settings: Settings) => {
-    if (!settings.canvasUrl || !settings.apiToken) {
-        throw new Error('Canvas API credentials are not valid.');
-    }
+const fetchFromCanvas = async (endpoint: string, domain: string, token: string): Promise<any> => {
+    // Ensure domain is clean
+    const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const fullUrl = `https://${cleanDomain}/api/v1/${endpoint}`;
     
-    // Use proxy if VITE_PROXY_URL is set, otherwise use direct fetch for extension compatibility.
-    const proxyApiUrl = import.meta.env.VITE_PROXY_URL;
-    let response: Response;
-
-    if (proxyApiUrl) {
-        // Route all API calls through the Render proxy to bypass CORS issues.
-        const proxyUrl = `${proxyApiUrl}/api/canvas-proxy?endpoint=${encodeURIComponent(endpoint)}`;
-        
-        const headers = {
-            'X-Canvas-URL': settings.canvasUrl,
-            'X-Canvas-Token': settings.apiToken, // Fixed typo from X--Canvas-Token
-        };
-        
-        response = await fetch(proxyUrl, { headers });
-    } else {
-        // Fallback to direct fetch for extension context if no proxy is configured.
-        const fullUrl = `${settings.canvasUrl}/api/v1/${endpoint}`;
-        const directHeaders = {
-            'Authorization': `Bearer ${settings.apiToken}`,
-        };
-        
-        response = await fetch(fullUrl, { headers: directHeaders });
-    }
+    const response = await fetch(fullUrl, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
 
     if (!response.ok) {
+        let errorMessage = `Canvas API Error (${response.status})`;
         try {
             const errorData = await response.json();
-            const errorMessage = errorData?.errors?.[0]?.message || JSON.stringify(errorData);
-            throw new Error(`Canvas API Error: ${errorMessage}`);
+            errorMessage += `: ${errorData?.errors?.[0]?.message || JSON.stringify(errorData)}`;
         } catch (e) {
-             const errorText = await response.text();
-             throw new Error(`Unexpected response from server (status ${response.status}). Please check your Canvas URL. Response: ${errorText.substring(0, 150)}`);
+             const textError = await response.text();
+             errorMessage += `: ${textError.slice(0, 200)}`;
         }
+        throw new Error(errorMessage);
     }
     
-    try {
-        return await response.json();
-    } catch(e) {
-        throw new Error('Received a successful response from the server, but it was not in the expected format (JSON).');
+    return await response.json();
+};
+
+export const fetchCanvasData = async (domain: string, accessToken: string): Promise<{ courses: Course[], assignments: Assignment[] }> => {
+    const coursesData: any[] = await fetchFromCanvas('courses?enrollment_state=active', domain, accessToken);
+    
+    const courses: Course[] = coursesData
+        .filter(course => course.name)
+        .map(course => ({
+            id: course.id,
+            name: course.name,
+            course_code: course.course_code,
+        }));
+
+    const allAssignments: Assignment[] = [];
+    // Limit to first 5 courses to avoid too many requests, as in user's sample code
+    for (const course of courses.slice(0, 5)) {
+        try {
+            const assignmentsData = await fetchFromCanvas(`courses/${course.id}/assignments`, domain, accessToken);
+            if (Array.isArray(assignmentsData)) {
+                const enrichedAssignments = assignmentsData.map((a: any) => ({
+                    id: a.id,
+                    name: a.name,
+                    description: a.description,
+                    due_at: a.due_at,
+                    points_possible: a.points_possible,
+                    course_id: course.id,
+                    courseName: course.name
+                }));
+                allAssignments.push(...enrichedAssignments);
+            }
+        } catch (err) {
+            console.error(`Error fetching assignments for course ${course.id}:`, err);
+        }
     }
+
+    const validAssignments = allAssignments.filter(a => a.due_at);
+    
+    return { courses, assignments: validAssignments };
+}
+
+// Fix: Add missing getCourses function
+export const getCourses = async (settings: Settings): Promise<Course[]> => {
+    const { canvasUrl, apiToken } = settings;
+    if (!canvasUrl || !apiToken) return [];
+    
+    const coursesData: any[] = await fetchFromCanvas('courses?enrollment_state=active', canvasUrl, apiToken);
+    return coursesData
+        .filter(course => course.name)
+        .map(course => ({
+            id: course.id,
+            name: course.name,
+            course_code: course.course_code,
+        }));
 };
 
-export const testConnection = async (canvasUrl: string, apiToken: string): Promise<boolean> => {
-    const endpoint = 'users/self/profile';
-    const settings = { canvasUrl, apiToken, sampleDataMode: false };
-    await fetchFromCanvas(endpoint, settings);
-    return true;
-};
+// Fix: Add missing getAssignments function
+export const getAssignments = async (settings: Settings): Promise<Assignment[]> => {
+    const { canvasUrl, apiToken } = settings;
+    if (!canvasUrl || !apiToken) return [];
 
-export const getCourses = async (settingsOverride?: Settings): Promise<Course[]> => {
-    const settings = settingsOverride || await getSettings();
-    const rawCourses = await fetchFromCanvas('courses?enrollment_state=active&per_page=50', settings);
-    return rawCourses.map((course: any) => ({
-        id: course.id,
-        name: course.name,
-        courseCode: course.course_code,
-    }));
-};
-
-export const getAssignments = async (settingsOverride?: Settings): Promise<Assignment[]> => {
-    const settings = settingsOverride || await getSettings();
     const courses = await getCourses(settings);
-    const courseIds = courses.map(c => c.id);
+    const allAssignments: Assignment[] = [];
+    for (const course of courses.slice(0, 5)) { // Limiting for performance
+        try {
+            const assignmentsData = await fetchFromCanvas(`courses/${course.id}/assignments`, canvasUrl, apiToken);
+            if (Array.isArray(assignmentsData)) {
+                const enrichedAssignments = assignmentsData.map((a: any) => ({
+                    id: a.id,
+                    name: a.name,
+                    description: a.description,
+                    due_at: a.due_at,
+                    points_possible: a.points_possible,
+                    course_id: course.id,
+                    courseName: course.name,
+                    status: a.has_submitted_submissions ? 'COMPLETED' : 'NOT_STARTED', // Basic status logic
+                }));
+                allAssignments.push(...enrichedAssignments);
+            }
+        } catch (err) {
+            console.error(`Error fetching assignments for course ${course.id}:`, err);
+        }
+    }
+    return allAssignments.filter(a => a.due_at);
+};
 
-    const assignmentPromises = courseIds.map(courseId => 
-        fetchFromCanvas(`courses/${courseId}/assignments?per_page=100`, settings)
-    );
-
-    const results = await Promise.all(assignmentPromises);
-    const allAssignments = results.flat(); 
-
-    return allAssignments
-      .filter((assignment: any) => assignment.due_at)
-      .map((assignment: any) => ({
-        id: assignment.id,
-        title: assignment.name,
-        courseId: assignment.course_id,
-        dueDate: new Date(assignment.due_at),
-        description: assignment.description || 'No description provided.',
-        points: assignment.points_possible || 0,
-    }));
+// Fix: Add missing testConnection function
+export const testConnection = async (domain: string, token: string): Promise<void> => {
+    await fetchFromCanvas('users/self', domain, token);
 };

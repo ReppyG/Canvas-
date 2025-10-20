@@ -1,6 +1,8 @@
 
 
+
 import React, { useState } from 'react';
+// Fix: Import missing CalendarEvent type
 import { CalendarEvent, Course } from '../types';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 

@@ -1,8 +1,10 @@
-// Fix: Add a reference to chrome types to resolve 'Cannot find name 'chrome''.
-/// <reference types="chrome" />
+// Fix: Declared 'chrome' as 'any' to resolve type errors when @types/chrome is not available.
+declare const chrome: any;
 
+// Fix: Import missing functions
 import { getAssignments as fetchAssignments, getCourses } from './services/canvasApiService';
-import { Settings } from './types';
+// Fix: Import missing Settings type
+import { Settings, Assignment, Course } from './types';
 
 const SETTINGS_KEY = 'canvasAiAssistantSettings';
 const CANVAS_ASSIGNMENT_IDS_KEY = 'canvasAiAssistantAssignmentIds';
@@ -56,12 +58,15 @@ async function checkAssignments() {
             const coursesById = new Map(courses.map(c => [c.id, c]));
 
             const message = newAssignments.length === 1
-                ? `New assignment: ${newAssignments[0].title}`
+                // Fix: use 'name' property
+                ? `New assignment: ${newAssignments[0].name}`
                 : `${newAssignments.length} new assignments posted.`;
             
             const items = newAssignments.slice(0, 5).map(a => {
-                const course = coursesById.get(a.courseId);
-                return { title: a.title, message: course ? course.courseCode : 'Unknown Course' };
+                // Fix: use 'course_id' property
+                const course = coursesById.get(a.course_id);
+                // Fix: use 'name' and 'course_code' properties
+                return { title: a.name, message: course ? course.course_code : 'Unknown Course' };
             });
 
             chrome.notifications.create({

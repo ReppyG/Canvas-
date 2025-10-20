@@ -1,10 +1,10 @@
-// Fix: Add a reference to chrome types to resolve 'Cannot find name 'chrome''.
-/// <reference types="chrome" />
 
 import { useState, useEffect } from 'react';
+// Fix: Import missing types
 import { Course, Assignment, CalendarEvent, Settings } from '../types';
 import * as apiService from '../services/canvasApiService';
 import * as mockService from '../services/canvasMockService';
+import { storage } from '../services/storageService';
 
 const SETTINGS_KEY = 'canvasAiAssistantSettings';
 const CANVAS_ASSIGNMENT_IDS_KEY = 'canvasAiAssistantAssignmentIds';
@@ -34,42 +34,51 @@ export const useCanvasData = (enabled: boolean) => {
         setError(null);
         setNewAssignments([]);
         
-        const settingsData = await chrome.storage.local.get(SETTINGS_KEY);
-        const settings: Settings | null = settingsData[SETTINGS_KEY];
+        const settings = await storage.get<Settings>(SETTINGS_KEY);
         
         const useSampleData = settings?.sampleDataMode ?? false;
-        const service = useSampleData ? mockService : apiService;
+        // Fix: Cast service to a common type to allow dynamic dispatch
+        const service: typeof apiService | typeof mockService = useSampleData ? mockService : apiService;
         
         setConnectionStatus(useSampleData ? 'sample' : 'live');
 
+        if (!useSampleData && !settings) {
+            setError("Canvas settings not configured.");
+            setConnectionStatus('error');
+            return;
+        }
+
         const [coursesData, assignmentsData] = await Promise.all([
-            service.getCourses(),
-            service.getAssignments(),
+            // Fix: Pass settings to API calls and handle mock service's signature
+            service.getCourses(settings!),
+            service.getAssignments(settings!),
         ]);
         
-        if (!useSampleData) {
+        if (!useSampleData && settings) {
             const newAssignmentIds = new Set(assignmentsData.map(a => a.id));
-            const storedIdsData = await chrome.storage.local.get(CANVAS_ASSIGNMENT_IDS_KEY);
-            const storedIdsRaw = storedIdsData[CANVAS_ASSIGNMENT_IDS_KEY];
+            const storedIdsRaw = await storage.get<number[]>(CANVAS_ASSIGNMENT_IDS_KEY);
             
             if (storedIdsRaw) {
-                const storedIds = new Set(storedIdsRaw as number[]);
+                const storedIds = new Set(storedIdsRaw);
                 const newlyAdded = assignmentsData.filter(a => !storedIds.has(a.id));
                 if (newlyAdded.length > 0) {
                     setNewAssignments(newlyAdded);
                 }
             }
             if (assignmentsData.length > 0) {
-               await chrome.storage.local.set({ [CANVAS_ASSIGNMENT_IDS_KEY]: Array.from(newAssignmentIds) });
+               await storage.set(CANVAS_ASSIGNMENT_IDS_KEY, Array.from(newAssignmentIds));
             }
         }
         
-        const eventsData: CalendarEvent[] = assignmentsData.map(a => ({
+        const eventsData: CalendarEvent[] = assignmentsData
+          .filter(a => a.due_at)
+          .map(a => ({
           id: a.id,
-          title: a.title,
-          date: a.dueDate,
-          type: a.title.toLowerCase().includes('quiz') ? 'quiz' : a.title.toLowerCase().includes('test') || a.title.toLowerCase().includes('exam') ? 'test' : 'assignment',
-          courseId: a.courseId,
+          title: a.name,
+          // Fix: Convert due_at string to Date object
+          date: new Date(a.due_at!),
+          type: a.name.toLowerCase().includes('quiz') ? 'quiz' : a.name.toLowerCase().includes('test') || a.name.toLowerCase().includes('exam') ? 'test' : 'assignment',
+          course_id: a.course_id,
         }));
 
         setCourses(coursesData);

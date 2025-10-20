@@ -1,6 +1,9 @@
 
+
 import React, { useState } from 'react';
+// Fix: Import missing function
 import { generateNotesFromText } from '../services/geminiService';
+// Fix: Import missing icons
 import { SparklesIcon, UploadIcon, DocumentTextIcon, ClipboardIcon, ExclamationTriangleIcon } from './icons/Icons';
 
 type InputType = 'text' | 'file';
@@ -55,15 +58,11 @@ const NotesView: React.FC = () => {
         content = inputText;
       }
       const result = await generateNotesFromText(content);
-      if (result.startsWith('[AI Error]')) {
-          setError(result);
-          setNotes('');
-      } else {
-          setNotes(result);
-      }
-    } catch (e) {
+      // The service now throws, so we catch it below. The result is always a string on success.
+      setNotes(result);
+    } catch (e: any) {
       console.error(e);
-      setError('An unexpected client-side error occurred. Please check the console.');
+      setError(e.message || 'An unexpected client-side error occurred. Please check the console.');
     } finally {
       setIsLoading(false);
     }
