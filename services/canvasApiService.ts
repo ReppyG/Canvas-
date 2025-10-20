@@ -1,21 +1,24 @@
-
-// Fix: Import Settings type
-import { Course, Assignment, Settings } from '../types';
+// Fix: Import Settings and AssignmentStatus types
+import { Course, Assignment, Settings, AssignmentStatus } from '../types';
 
 const fetchFromCanvas = async (endpoint: string, domain: string, token: string): Promise<any> => {
-    // Ensure domain is clean
-    const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    const fullUrl = `https://${cleanDomain}/api/v1/${endpoint}`;
+    // This now uses a relative path to a proxy server. This is a standard and secure way
+    // to handle cross-origin API requests from a web application, avoiding CORS errors.
+    const proxyUrl = `/api/canvas-proxy?endpoint=${encodeURIComponent(endpoint)}`;
     
-    const response = await fetch(fullUrl, {
-        headers: { 'Authorization': `Bearer ${token}` }
+    const response = await fetch(proxyUrl, {
+        headers: { 
+            'X-Canvas-URL': `https://${domain.replace(/^https?:\/\//, '')}`,
+            'X-Canvas-Token': token
+        }
     });
 
     if (!response.ok) {
-        let errorMessage = `Canvas API Error (${response.status})`;
+        let errorMessage = `Proxy Error (${response.status})`;
         try {
             const errorData = await response.json();
-            errorMessage += `: ${errorData?.errors?.[0]?.message || JSON.stringify(errorData)}`;
+            // Use optional chaining for safer property access
+            errorMessage += `: ${errorData?.error || errorData?.errors?.[0]?.message || JSON.stringify(errorData)}`;
         } catch (e) {
              const textError = await response.text();
              errorMessage += `: ${textError.slice(0, 200)}`;
@@ -86,7 +89,7 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
 
     const courses = await getCourses(settings);
     const allAssignments: Assignment[] = [];
-    for (const course of courses.slice(0, 5)) { // Limiting for performance
+    for (const course of courses.slice(0, 10)) { // Limiting for performance
         try {
             const assignmentsData = await fetchFromCanvas(`courses/${course.id}/assignments`, canvasUrl, apiToken);
             if (Array.isArray(assignmentsData)) {
@@ -98,7 +101,8 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
                     points_possible: a.points_possible,
                     course_id: course.id,
                     courseName: course.name,
-                    status: a.has_submitted_submissions ? 'COMPLETED' : 'NOT_STARTED', // Basic status logic
+                    // FIX: Explicitly cast status to AssignmentStatus to prevent TypeScript from widening the type to 'string'.
+                    status: (a.has_submitted_submissions ? 'COMPLETED' : 'NOT_STARTED') as AssignmentStatus, // Basic status logic
                 }));
                 allAssignments.push(...enrichedAssignments);
             }

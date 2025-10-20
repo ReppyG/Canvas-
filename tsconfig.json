@@ -26,6 +26,7 @@
     "dist",
     "dist-server",
     "server.ts",
+    "api",
     "netlify",
     "tsconfig.server.json"
   ]
