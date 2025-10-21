@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Chat, Connection, LiveServerMessage, Modality, Blob } from "@google/genai";
+import { GoogleGenAI, Type, Chat, LiveServerMessage, Modality, Blob } from "@google/genai";
 import { Assignment, StudyPlan, Summary, ChatMessage } from "../types";
 
 let ai: GoogleGenAI | null = null;
@@ -323,8 +323,7 @@ export const startTranscriptionSession = async (
         onError: (error: Error) => void,
         onClose: () => void,
     }
-// Fix: Use the correct `Connection` type instead of the removed `LiveSession` type.
-): Promise<Connection> => {
+) => {
     const client = getClient();
     try {
         const sessionPromise = client.live.connect({

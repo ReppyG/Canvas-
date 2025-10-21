@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-// Fix: Use the correct `Connection` type instead of the removed `LiveSession` type.
-import { Connection } from '@google/genai';
 import { startTranscriptionSession, createAudioBlob } from '../services/geminiService';
 import { XIcon, SparklesIcon, MicIcon, StopCircleIcon, ExclamationTriangleIcon } from './icons/Icons';
 
@@ -15,7 +13,8 @@ const AudioTranscriberModal: React.FC<AudioTranscriberModalProps> = ({ onClose }
     const [transcript, setTranscript] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
 
-    const sessionRef = useRef<Connection | null>(null);
+    // Fix: Use `any` for the session type as `Connection` is not exported from the SDK.
+    const sessionRef = useRef<any | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const processorRef = useRef<ScriptProcessorNode | null>(null);
@@ -57,7 +56,8 @@ const AudioTranscriberModal: React.FC<AudioTranscriberModalProps> = ({ onClose }
         setTranscript('');
 
         try {
-            const session = await startTranscriptionSession({
+            // Fix: Adhere to SDK guidelines by using the session promise to avoid stale closures.
+            const sessionPromise = startTranscriptionSession({
                 onTranscriptionUpdate: (text, isFinal) => {
                     setTranscript(prev => prev + text);
                 },
@@ -71,7 +71,10 @@ const AudioTranscriberModal: React.FC<AudioTranscriberModalProps> = ({ onClose }
                     cleanup();
                 }
             });
-            sessionRef.current = session;
+            
+            sessionPromise.then(session => {
+                sessionRef.current = session;
+            });
             
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             streamRef.current = stream;
@@ -89,7 +92,9 @@ const AudioTranscriberModal: React.FC<AudioTranscriberModalProps> = ({ onClose }
             processor.onaudioprocess = (e) => {
                 const inputData = e.inputBuffer.getChannelData(0);
                 const blob = createAudioBlob(inputData);
-                session.sendRealtimeInput({ media: blob });
+                sessionPromise.then(session => {
+                    session.sendRealtimeInput({ media: blob });
+                });
             };
 
             source.connect(processor);
