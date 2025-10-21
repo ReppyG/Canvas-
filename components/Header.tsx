@@ -1,73 +1,70 @@
-import { ApiService } from './apiService';
+import React from 'react';
+import { Assignment } from '../types';
 
-/**
- * Header component for displaying date/time and user info
- */
-export class HeaderComponent {
-  private element: HTMLElement;
-  private apiService: ApiService;
-  private timeInterval: number | null = null;
-  
-  /**
-   * Initialize the header component
-   * @param elementId DOM element ID for the header
-   * @param apiService API service instance
-   */
-  constructor(elementId: string, apiService: ApiService) {
-    this.element = document.getElementById(elementId) || document.createElement('div');
-    if (!document.getElementById(elementId)) {
-      this.element.id = elementId;
-      document.body.prepend(this.element);
-    }
-    this.apiService = apiService;
-  }
-  
-  /**
-   * Start the header component with timer
-   */
-  start(): void {
-    this.render();
-    
-    // Update time every second
-    this.timeInterval = window.setInterval(() => {
-      this.updateDateTime();
-    }, 1000);
-  }
-  
-  /**
-   * Stop the timer
-   */
-  stop(): void {
-    if (this.timeInterval !== null) {
-      clearInterval(this.timeInterval);
-      this.timeInterval = null;
-    }
-  }
-  
-  /**
-   * Render the header component
-   */
-  render(): void {
-    this.element.innerHTML = `
-      <div class="canvas-header">
-        <div class="datetime-display">
-          Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): 
-          <span id="current-datetime">${this.apiService.getCurrentDateTime()}</span>
-        </div>
-        <div class="user-info">
-          Current User's Login: <span id="current-user-login">${this.apiService.getUserLogin()}</span>
-        </div>
-      </div>
-    `;
-  }
-  
-  /**
-   * Update just the date/time part
-   */
-  updateDateTime(): void {
-    const datetimeElement = this.element.querySelector('#current-datetime');
-    if (datetimeElement) {
-      datetimeElement.textContent = this.apiService.getCurrentDateTime();
-    }
-  }
+interface HeaderProps {
+    assignments: Assignment[];
+    connectionStatus: 'live' | 'sample' | 'disconnected';
 }
+
+const Header: React.FC<HeaderProps> = ({ assignments, connectionStatus }) => {
+    const [currentTime, setCurrentTime] = React.useState(new Date());
+
+    React.useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, []);
+
+    const formatDateTime = (date: Date): string => {
+        return date.toISOString().replace('T', ' ').substring(0, 19);
+    };
+
+    const getStatusColor = () => {
+        switch (connectionStatus) {
+            case 'live':
+                return 'bg-green-500';
+            case 'sample':
+                return 'bg-yellow-500';
+            case 'disconnected':
+                return 'bg-red-500';
+            default:
+                return 'bg-gray-500';
+        }
+    };
+
+    const getStatusText = () => {
+        switch (connectionStatus) {
+            case 'live':
+                return 'Live';
+            case 'sample':
+                return 'Sample Data';
+            case 'disconnected':
+                return 'Disconnected';
+            default:
+                return 'Unknown';
+        }
+    };
+
+    return (
+        <header className="bg-gray-800 border-b border-gray-700 px-8 py-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                    <div className="text-sm text-gray-400">
+                        <span className="font-medium">Time (UTC):</span>{' '}
+                        <span className="text-white font-mono">{formatDateTime(currentTime)}</span>
+                    </div>
+                </div>
+                <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                        <div className={`w-2 h-2 rounded-full ${getStatusColor()}`}></div>
+                        <span className="text-sm text-gray-400">{getStatusText()}</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+    );
+};
+
+export default Header;
