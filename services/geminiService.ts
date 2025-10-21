@@ -22,8 +22,12 @@ function getClient(): GoogleGenAI {
 const handleApiError = (error: unknown) : never => {
     console.error("Error communicating with Gemini API:", error);
     if (error instanceof Error) {
+        // Passthrough for our specific configuration error
+        if (error.message.startsWith("Gemini API key is not configured")) {
+            throw error;
+        }
         if (error.message.includes('API key')) {
-             throw new Error(`[AI Error] Invalid API Key: Please ensure your Gemini API key is configured correctly.`);
+             throw new Error(`[AI Error] The configured Gemini API Key is invalid or has insufficient permissions.`);
         }
         if (error.message.includes('RESOURCE_EXHAUSTED')) {
             throw new Error(`[AI Error] You have exceeded the API request limit. Please wait a moment before trying again.`);

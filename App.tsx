@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Page } from './types';
 import { useSettings } from './hooks/useSettings';
 import { useCanvasData } from './hooks/useCanvasData';
@@ -14,7 +14,7 @@ import ChatView from './components/ChatView';
 import IntegrationsView from './components/IntegrationsView';
 import SettingsView from './components/SettingsView';
 import GlobalAiChat from './components/GlobalAiChat';
-import { SparklesIcon, Loader2Icon } from './components/icons/Icons';
+import { SparklesIcon, Loader2Icon, ExclamationTriangleIcon } from './components/icons/Icons';
 
 const App: React.FC = () => {
     const { settings, saveSettings, clearSettings, isConfigured, enableSampleDataMode } = useSettings();
@@ -25,6 +25,13 @@ const App: React.FC = () => {
     
     const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
     const [isChatOpen, setIsChatOpen] = useState(false);
+    const [isAiConfigured, setIsAiConfigured] = useState(true);
+
+    useEffect(() => {
+        if (!process.env.API_KEY) {
+            setIsAiConfigured(false);
+        }
+    }, []);
 
     if (settings === null) {
         return (
@@ -75,6 +82,12 @@ const App: React.FC = () => {
             <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Header assignments={assignments} connectionStatus={connectionStatus} />
+                {!isAiConfigured && (
+                    <div className="bg-yellow-100 text-yellow-800 text-center text-sm py-2 px-4 flex items-center justify-center dark:bg-yellow-900/50 dark:text-yellow-200 flex-shrink-0">
+                        <ExclamationTriangleIcon className="w-5 h-5 inline-block mr-2 flex-shrink-0" />
+                        <span>AI features are unavailable. The Gemini API key has not been configured.</span>
+                    </div>
+                )}
                 <main className="flex-1 overflow-y-auto p-8 relative">
                     {loading && connectionStatus === 'live' ? (
                          <div className="absolute inset-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm flex items-center justify-center z-10">
