@@ -1,0 +1,16 @@
+node_modules
+.git
+*.log
+.env.local
+.env*.local
+dist-server
+debug-local.sh
+netlify
+netlify.toml
+server.ts
+tsconfig.server.json
+background.ts
+content.ts
+canvasApp.ts
+manifest.json
+index.tsx

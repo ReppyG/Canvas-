@@ -150,7 +150,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                                 <div>
                                     <h4 className="font-bold text-yellow-200">Connection Test Failed</h4>
                                     <p className="mt-1">{testMessage}</p>
-                                    <p className="mt-3">If the connection test fails, you can still explore the app's features with sample data.</p>
+                                    <p className="mt-3">If the connection test fails, you can still explore the app&apos;s features with sample data.</p>
                                     <button
                                         type="button"
                                         onClick={handleProceedWithSample}
@@ -198,7 +198,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                     <li>Click on <strong>Account</strong> in the global navigation, then <strong>Settings</strong>.</li>
                     <li>Scroll down to the <strong>Approved Integrations</strong> section.</li>
                     <li>Click on <strong>+ New Access Token</strong>.</li>
-                    <li>Give it a purpose (e.g., "Canvas AI Assistant") and click <strong>Generate Token</strong>.</li>
+                    <li>Give it a purpose (e.g., &quot;Canvas AI Assistant&quot;) and click <strong>Generate Token</strong>.</li>
                     <li>Copy the generated token and paste it above. <strong>It will only be shown once!</strong></li>
                 </ol>
             </div>
