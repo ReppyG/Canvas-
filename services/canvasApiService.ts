@@ -1,119 +1,143 @@
-// Fix: Import Settings and AssignmentStatus types
-import { Course, Assignment, Settings, AssignmentStatus } from '../types';
-
-const fetchFromCanvas = async (endpoint: string, domain: string, token: string): Promise<any> => {
-    // This now uses a relative path to a proxy server. This is a standard and secure way
-    // to handle cross-origin API requests from a web application, avoiding CORS errors.
-    const proxyUrl = `/api/canvas-proxy?endpoint=${encodeURIComponent(endpoint)}`;
-    
-    const response = await fetch(proxyUrl, {
-        headers: { 
-            'X-Canvas-URL': `https://${domain.replace(/^https?:\/\//, '')}`,
-            'X-Canvas-Token': token
+/**
+ * Canvas API Service
+ * Handles API communication with proper error handling for JSON parsing
+ */
+export class ApiService {
+  private baseUrl: string;
+  private apiToken: string | null;
+  private currentUser: { login: string; name: string } = { login: 'ReppyG', name: 'Sample User' };
+  
+  /**
+   * Initialize the API service
+   * @param baseUrl The Canvas API base URL
+   * @param apiToken Optional API token for authentication
+   */
+  constructor(baseUrl: string, apiToken: string | null = null) {
+    this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    this.apiToken = apiToken;
+  }
+  
+  /**
+   * Enhanced fetch method with improved JSON parsing error handling
+   * @param endpoint API endpoint path (e.g., '/api/v1/users/self')
+   * @param options Fetch request options
+   * @returns Promise with parsed JSON response
+   */
+  async fetchData<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    try {
+      const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+      
+      // Prepare headers with authorization if token is available
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> || {})
+      };
+      
+      if (this.apiToken) {
+        headers['Authorization'] = `Bearer ${this.apiToken}`;
+      }
+      
+      const response = await fetch(url, {
+        ...options,
+        headers
+      });
+      
+      // Check if response is OK
+      if (!response.ok) {
+        // Try to extract error details
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(`API error: ${JSON.stringify(errorData)}`);
+        } else {
+          // If not JSON, get text for debugging
+          const textContent = await response.text();
+          console.error('Non-JSON error response:', textContent.substring(0, 200));
+          throw new Error(`Request failed with status ${response.status}`);
         }
-    });
-
-    if (!response.ok) {
-        let errorMessage = `Proxy Error (${response.status})`;
-        try {
-            const errorData = await response.json();
-            // Use optional chaining for safer property access
-            errorMessage += `: ${errorData?.error || errorData?.errors?.[0]?.message || JSON.stringify(errorData)}`;
-        } catch (e) {
-             const textError = await response.text();
-             errorMessage += `: ${textError.slice(0, 200)}`;
-        }
-        throw new Error(errorMessage);
+      }
+      
+      // Verify content type before parsing as JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        // Not JSON content - log details for debugging
+        const textContent = await response.text();
+        console.error('Expected JSON but received:', contentType);
+        console.error('Response preview:', textContent.substring(0, 200));
+        throw new Error('Response is not valid JSON');
+      }
+      
+      // Now safe to parse as JSON
+      const data = await response.json() as T;
+      
+      // If this is user data, update the currentUser
+      if (endpoint.includes('/users/self') && data) {
+        this.currentUser = {
+          login: (data as any).login_id || 'ReppyG',
+          name: (data as any).name || 'Sample User'
+        };
+      }
+      
+      return data;
+      
+    } catch (error) {
+      console.error(`API Error:`, error);
+      
+      // If it's the specific JSON parsing error, provide a more user-friendly message
+      if (error instanceof SyntaxError && error.message.includes('Unexpected token')) {
+        throw new Error('Connection failed: Unexpected token \'<\', "<!DOCTYPE "... is not valid JSON. The server may be returning a login page or error page.');
+      }
+      
+      // Re-throw the original error
+      throw error;
     }
-    
-    return await response.json();
-};
-
-export const fetchCanvasData = async (domain: string, accessToken: string): Promise<{ courses: Course[], assignments: Assignment[] }> => {
-    const coursesData: any[] = await fetchFromCanvas('courses?enrollment_state=active', domain, accessToken);
-    
-    const courses: Course[] = coursesData
-        .filter(course => course.name)
-        .map(course => ({
-            id: course.id,
-            name: course.name,
-            course_code: course.course_code,
-        }));
-
-    const allAssignments: Assignment[] = [];
-    // Limit to first 5 courses to avoid too many requests, as in user's sample code
-    for (const course of courses.slice(0, 5)) {
-        try {
-            const assignmentsData = await fetchFromCanvas(`courses/${course.id}/assignments`, domain, accessToken);
-            if (Array.isArray(assignmentsData)) {
-                const enrichedAssignments = assignmentsData.map((a: any) => ({
-                    id: a.id,
-                    name: a.name,
-                    description: a.description,
-                    due_at: a.due_at,
-                    points_possible: a.points_possible,
-                    course_id: course.id,
-                    courseName: course.name
-                }));
-                allAssignments.push(...enrichedAssignments);
-            }
-        } catch (err) {
-            console.error(`Error fetching assignments for course ${course.id}:`, err);
-        }
+  }
+  
+  /**
+   * Test connection to Canvas API
+   * @returns Object with success status and message
+   */
+  async testConnection(): Promise<{success: boolean; message: string}> {
+    try {
+      // Use a simple endpoint to test connection
+      await this.fetchData('/api/v1/users/self');
+      return {
+        success: true,
+        message: 'Connection successful'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Connection failed'
+      };
     }
-
-    const validAssignments = allAssignments.filter(a => a.due_at);
-    
-    return { courses, assignments: validAssignments };
+  }
+  
+  /**
+   * Get current date time in UTC YYYY-MM-DD HH:MM:SS format
+   * @returns Formatted date-time string
+   */
+  getCurrentDateTime(): string {
+    const now = new Date();
+    return now.toISOString()
+      .replace('T', ' ')
+      .replace(/\.\d+Z$/, '');
+  }
+  
+  /**
+   * Get current user's login name
+   * @returns User login name
+   */
+  getUserLogin(): string {
+    return this.currentUser.login;
+  }
+  
+  /**
+   * Get current user's full name
+   * @returns User full name
+   */
+  getUserName(): string {
+    return this.currentUser.name;
+  }
 }
-
-// Fix: Add missing getCourses function
-export const getCourses = async (settings: Settings): Promise<Course[]> => {
-    const { canvasUrl, apiToken } = settings;
-    if (!canvasUrl || !apiToken) return [];
-    
-    const coursesData: any[] = await fetchFromCanvas('courses?enrollment_state=active', canvasUrl, apiToken);
-    return coursesData
-        .filter(course => course.name)
-        .map(course => ({
-            id: course.id,
-            name: course.name,
-            course_code: course.course_code,
-        }));
-};
-
-// Fix: Add missing getAssignments function
-export const getAssignments = async (settings: Settings): Promise<Assignment[]> => {
-    const { canvasUrl, apiToken } = settings;
-    if (!canvasUrl || !apiToken) return [];
-
-    const courses = await getCourses(settings);
-    const allAssignments: Assignment[] = [];
-    for (const course of courses.slice(0, 10)) { // Limiting for performance
-        try {
-            const assignmentsData = await fetchFromCanvas(`courses/${course.id}/assignments`, canvasUrl, apiToken);
-            if (Array.isArray(assignmentsData)) {
-                const enrichedAssignments = assignmentsData.map((a: any) => ({
-                    id: a.id,
-                    name: a.name,
-                    description: a.description,
-                    due_at: a.due_at,
-                    points_possible: a.points_possible,
-                    course_id: course.id,
-                    courseName: course.name,
-                    // FIX: Explicitly cast status to AssignmentStatus to prevent TypeScript from widening the type to 'string'.
-                    status: (a.has_submitted_submissions ? 'COMPLETED' : 'NOT_STARTED') as AssignmentStatus, // Basic status logic
-                }));
-                allAssignments.push(...enrichedAssignments);
-            }
-        } catch (err) {
-            console.error(`Error fetching assignments for course ${course.id}:`, err);
-        }
-    }
-    return allAssignments.filter(a => a.due_at);
-};
-
-// Fix: Add missing testConnection function
-export const testConnection = async (domain: string, token: string): Promise<void> => {
-    await fetchFromCanvas('users/self', domain, token);
-};
