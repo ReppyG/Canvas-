@@ -1,7 +1,5 @@
-
-// Fix: Import Chat type.
-import { GoogleGenAI, GenerateContentResponse, Type, Chat } from "@google/genai";
-import { Assignment, StudyPlan, Summary, ChatMessage } from "../types";
+import { GoogleGenAI, Type, Chat } from "@google/genai";
+import { Assignment, StudyPlan, Summary, ChatMessage, AiTutorMessage } from "../types";
 
 let ai: GoogleGenAI | null = null;
 const studyPlanModel = "gemini-2.5-pro";
@@ -10,18 +8,8 @@ const tutorModel = "gemini-2.5-flash";
 
 function getClient(): GoogleGenAI {
     if (ai) return ai;
-    // Fix: Use process.env.API_KEY as per guidelines and to fix build error.
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-```
-4. **Save** the file
-
-## Step 3: Create Your Environment File
-
-1. **Create a new file** in your project root (same folder as `package.json`) called `.env`
-2. **Add this line** to the file:
-```
-   VITE_GEMINI_API_KEY=AIzaSyBnPWon7WycBczqsbskqotIlcIJCHzM8i0
-       if (!apiKey) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
         throw new Error("Gemini API key is not configured. Please set the API_KEY environment variable.");
     }
     ai = new GoogleGenAI({ apiKey });
@@ -43,7 +31,7 @@ const handleApiError = (error: unknown) : never => {
 }
 
 
-export const generateStudyPlan = async (assignment: Assignment): Promise<StudyPlan | null> => {
+export const generateStudyPlan = async (assignment: Assignment): Promise<StudyPlan> => {
     const client = getClient();
     const daysUntilDue = assignment.due_at ? Math.ceil((new Date(assignment.due_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 'N/A';
 
@@ -104,7 +92,7 @@ Create a JSON study plan. Make it practical, actionable, and tailored to the tim
     }
 };
 
-export const generateSummary = async (content: string): Promise<Summary | null> => {
+export const generateSummary = async (content: string): Promise<Summary> => {
     const client = getClient();
     const prompt = `You are an expert educator. Summarize this educational content in a structured way.
 Content to summarize:
@@ -154,7 +142,6 @@ Output ONLY a valid JSON object matching the provided schema.`;
     }
 };
 
-
 export const getTutorResponse = async (history: ChatMessage[], newMessage: string): Promise<string> => {
     const client = getClient();
     const chat = client.chats.create({
@@ -176,7 +163,6 @@ export const getTutorResponse = async (history: ChatMessage[], newMessage: strin
     }
 };
 
-// Fix: Add missing generateText function
 export const generateText = async (prompt: string): Promise<string> => {
     const client = getClient();
     try {
@@ -190,7 +176,6 @@ export const generateText = async (prompt: string): Promise<string> => {
     }
 };
 
-// Fix: Add missing summarizeDocument function
 export const summarizeDocument = async (content: string): Promise<string> => {
     const client = getClient();
     const prompt = `Summarize this document concisely:\n\n${content}`;
@@ -205,7 +190,6 @@ export const summarizeDocument = async (content: string): Promise<string> => {
     }
 };
 
-// Fix: Add missing generateNotesFromText function
 export const generateNotesFromText = async (content: string): Promise<string> => {
     const client = getClient();
     const prompt = `You are an expert student. Create a structured study guide from the following text. Use markdown for formatting, including headings, bullet points, and bold text for key terms.
@@ -213,7 +197,7 @@ export const generateNotesFromText = async (content: string): Promise<string> =>
     ${content}`;
     try {
         const response = await client.models.generateContent({
-            model: summaryModel, // "gemini-2.5-pro"
+            model: summaryModel,
             contents: prompt,
         });
         return response.text;
@@ -222,7 +206,6 @@ export const generateNotesFromText = async (content: string): Promise<string> =>
     }
 };
 
-// Fix: Add missing estimateAssignmentTime function
 export const estimateAssignmentTime = async (assignment: Assignment): Promise<string> => {
     const client = getClient();
     const prompt = `Based on the following assignment details, estimate the time required to complete it. Provide a concise estimate like "2-3 hours" or "45 minutes".
@@ -232,7 +215,7 @@ export const estimateAssignmentTime = async (assignment: Assignment): Promise<st
 
     try {
         const response = await client.models.generateContent({
-            model: tutorModel, // flash for speed
+            model: tutorModel,
             contents: prompt,
         });
         return response.text.trim();
@@ -241,39 +224,27 @@ export const estimateAssignmentTime = async (assignment: Assignment): Promise<st
     }
 };
 
-// Fix: Add missing createTutorChat function
-export const createTutorChat = (assignment: Assignment): Chat | null => {
-    try {
-        const client = getClient();
-        const chat = client.chats.create({
-            model: tutorModel,
-            config: {
-                systemInstruction: `You are a patient, knowledgeable tutor helping a student with a specific assignment.
-                Assignment: ${assignment.name}
-                Description: ${assignment.description || 'No description provided.'}
-                Use the Socratic method when appropriate, encourage critical thinking, and never give direct answers to homework. Be supportive and encouraging.`
-            },
-        });
-        return chat;
-    } catch (error) {
-        console.error("Failed to create chat session:", error);
-        return null;
-    }
+export const createTutorChat = (assignment: Assignment): Chat => {
+    const client = getClient();
+    const chat = client.chats.create({
+        model: tutorModel,
+        config: {
+            systemInstruction: `You are a patient, knowledgeable tutor helping a student with a specific assignment.
+            Assignment: ${assignment.name}
+            Description: ${assignment.description || 'No description provided.'}
+            Use the Socratic method when appropriate, encourage critical thinking, and never give direct answers to homework. Be supportive and encouraging.`
+        },
+    });
+    return chat;
 };
 
-// Fix: Add missing createGlobalAssistantChat function
-export const createGlobalAssistantChat = (context: string): Chat | null => {
-    try {
-        const client = getClient();
-        const chat = client.chats.create({
-            model: tutorModel, // "gemini-2.5-flash"
-            config: {
-                systemInstruction: `You are a helpful AI assistant for a student. You have access to their course and assignment data to answer questions. Be concise and helpful. Here is the student's data: ${context}`
-            },
-        });
-        return chat;
-    } catch (error) {
-        console.error("Failed to create chat session:", error);
-        return null;
-    }
+export const createGlobalAssistantChat = (context: string): Chat => {
+    const client = getClient();
+    const chat = client.chats.create({
+        model: tutorModel,
+        config: {
+            systemInstruction: `You are a helpful AI assistant for a student. You have access to their course and assignment data to answer questions. Be concise and helpful. Here is the student's data: ${context}`
+        },
+    });
+    return chat;
 };

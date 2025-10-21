@@ -14,8 +14,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
-    "types": ["chrome"]
+    "jsx": "react-jsx"
   },
   "include": [
     "**/*.ts",
@@ -23,11 +22,6 @@
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "dist-server",
-    "server.ts",
-    "api",
-    "netlify",
-    "tsconfig.server.json"
+    "dist"
   ]
 }

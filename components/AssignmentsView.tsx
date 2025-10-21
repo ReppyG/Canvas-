@@ -1,13 +1,8 @@
-
-
 import React, { useState, useMemo, useEffect } from 'react';
-// Fix: Import missing types
 import { Course, Assignment, AiTutorMessage, Settings, AssignmentStatus } from '../types';
 import { format } from 'date-fns';
-// Fix: Import missing functions
 import { estimateAssignmentTime, createTutorChat } from '../services/geminiService';
 import { Chat } from '@google/genai';
-// Fix: Import missing icon
 import { SparklesIcon, XIcon, ClockIcon, DocumentTextIcon, ExternalLinkIcon } from './icons/Icons';
 import { storage } from '../services/storageService';
 import StudyPlanDialog from './StudyPlanDialog';
@@ -18,11 +13,18 @@ const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> =
     const [isLoading, setIsLoading] = useState(false);
     const [inputError, setInputError] = useState<string | null>(null);
     const [isShaking, setIsShaking] = useState(false);
-    const chat = useMemo(() => createTutorChat(assignment), [assignment]);
+    const chat = useMemo(() => {
+        try {
+            return createTutorChat(assignment);
+        } catch (e) {
+            console.error(e);
+            return null;
+        }
+    }, [assignment]);
     
     useEffect(() => {
         if (!chat) {
-            setMessages([{ role: 'model', text: 'Failed to initialize AI Tutor. The Gemini API key may be missing or invalid in your deployment settings.' }]);
+            setMessages([{ role: 'model', text: 'Failed to initialize AI Tutor. The Gemini API key may be missing or invalid.' }]);
         } else {
             setMessages([{ role: 'model', text: `Hello! I'm here to help you with your "${assignment.name}" assignment. Ask me anything to get started.` }]);
         }
@@ -56,30 +58,31 @@ const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> =
 
         } catch (error) {
             console.error("AI Tutor Error:", error);
-            setMessages(prev => [...prev, { role: 'model', text: 'Sorry, I encountered an error.' }]);
+            const errorMessage = error instanceof Error ? error.message : "Sorry, I encountered an error."
+            setMessages(prev => [...prev, { role: 'model', text: errorMessage }]);
         } finally {
             setIsLoading(false);
         }
     };
     
     return (
-      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
-        <div className="bg-gray-800 rounded-xl w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl border border-gray-700">
-            <div className="flex items-center justify-between p-4 border-b border-gray-700">
-                <h2 className="text-lg font-bold text-white">AI Tutor: {assignment.name}</h2>
-                <button onClick={onClose} className="text-gray-400 hover:text-white"><XIcon/></button>
+      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">AI Tutor: {assignment.name}</h2>
+                <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"><XIcon/></button>
             </div>
-            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+            <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50 dark:bg-gray-900">
                 {messages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-md p-3 rounded-lg ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
+                        <div className={`max-w-md p-3 rounded-lg ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
                             <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                         </div>
                     </div>
                 ))}
-                {isLoading && <div className="flex justify-start"><div className="p-3 bg-gray-700 rounded-lg"><span className="animate-pulse">...</span></div></div>}
+                {isLoading && <div className="flex justify-start"><div className="p-3 bg-gray-200 dark:bg-gray-700 rounded-lg"><span className="animate-pulse">...</span></div></div>}
             </div>
-            <div className="p-4 border-t border-gray-700">
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-2">
                     <input 
                         type="text" 
@@ -91,11 +94,11 @@ const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> =
                         onKeyPress={e => e.key === 'Enter' && sendMessage()} 
                         placeholder={!chat ? "AI Tutor not available" : "Ask for help..."}
                         disabled={isLoading || !chat}
-                        className={`flex-1 bg-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 text-white transition-shadow disabled:cursor-not-allowed disabled:opacity-50 ${inputError ? 'ring-2 ring-red-500' : 'focus:ring-blue-500'} ${isShaking ? 'animate-shake' : ''}`}
+                        className={`flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-2 focus:outline-none focus:ring-2 text-gray-900 dark:text-gray-200 transition-shadow disabled:cursor-not-allowed disabled:opacity-50 ${inputError ? 'ring-2 ring-red-500' : 'focus:ring-blue-500'} ${isShaking ? 'animate-shake' : ''}`}
                     />
-                    <button onClick={sendMessage} disabled={isLoading || !chat} className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-600">Send</button>
+                    <button onClick={sendMessage} disabled={isLoading || !chat} className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-400">Send</button>
                 </div>
-                {inputError && <p className="text-red-400 text-xs mt-1 ml-1">{inputError}</p>}
+                {inputError && <p className="text-red-500 text-xs mt-1 ml-1">{inputError}</p>}
             </div>
         </div>
       </div>
@@ -115,7 +118,6 @@ const saveEstimateToStorage = async (assignmentId: number, estimate: string) => 
     await storage.set(ASSIGNMENT_ESTIMATES_KEY, estimates);
 };
 
-
 const AssignmentCard: React.FC<{ 
     assignment: Assignment;
     course: Course;
@@ -131,7 +133,6 @@ const AssignmentCard: React.FC<{
         const SETTINGS_KEY = 'canvasAiAssistantSettings';
         const loadSettings = async () => {
             const settings = await storage.get<Settings>(SETTINGS_KEY);
-            // Fix: Use 'course_id' property
             if (settings?.canvasUrl && assignment.course_id && assignment.id) {
                 setCanvasLink(`${settings.canvasUrl}/courses/${assignment.course_id}/assignments/${assignment.id}`);
             }
@@ -151,7 +152,6 @@ const AssignmentCard: React.FC<{
             }
         }
 
-        // Fix: Use try-catch block to handle API errors from geminiService
         try {
             const time = await estimateAssignmentTime(assignment);
             setEstimatedTime(time);
@@ -169,19 +169,17 @@ const AssignmentCard: React.FC<{
     }, [assignment.id]);
 
     return (
-      <div className="bg-gray-800 p-5 rounded-lg border border-gray-700 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25 hover:border-blue-500/50">
+      <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:border-blue-500/50">
           <div className="flex justify-between items-start">
               <div>
-                {/* Fix: use 'name' property */}
-                <h3 className="font-bold text-lg text-white">{assignment.name}</h3>
-                {/* Fix: use 'course_code' and 'due_at' properties */}
-                <p className="text-sm text-gray-400">{course.course_code}: {format(new Date(assignment.due_at!), 'PPp')}</p>
-                 <div className="text-sm text-gray-400 mt-1 flex items-center h-5">
+                <h3 className="font-bold text-lg text-gray-900 dark:text-white">{assignment.name}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{course.course_code}: {format(new Date(assignment.due_at!), 'PPp')}</p>
+                 <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center h-5">
                   {(isEstimatingTime || estimatedTime) && <ClockIcon className="w-4 h-4 mr-1.5 flex-shrink-0" />}
                   {isEstimatingTime ? (
                     <span className="animate-pulse">Estimating time...</span>
                   ) : estimatedTime.startsWith('[AI Error]') ? (
-                    <span className="text-red-400">{estimatedTime.replace('[AI Error]', '').trim()}</span>
+                    <span className="text-red-500">{estimatedTime.replace('[AI Error]', '').trim()}</span>
                   ) : estimatedTime ? (
                     <span>Est. Time: {estimatedTime}</span>
                   ) : null}
@@ -192,7 +190,7 @@ const AssignmentCard: React.FC<{
                     href={canvasLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-shrink-0 ml-4 inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-400 transition-colors border border-gray-700 hover:border-blue-500/50 bg-gray-900/50 hover:bg-gray-800 px-2.5 py-1.5 rounded-md"
+                    className="flex-shrink-0 ml-4 inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors border border-gray-300 dark:border-gray-600 hover:border-blue-500/50 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 px-2.5 py-1.5 rounded-md"
                     aria-label="View on Canvas"
                   >
                      <ExternalLinkIcon className="w-4 h-4" />
@@ -201,17 +199,16 @@ const AssignmentCard: React.FC<{
               )}
           </div>
           
-          <div className="mt-4 pt-4 border-t border-gray-700">
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-2">
-                <h4 className="text-sm font-semibold text-gray-300 flex items-center">
-                    <DocumentTextIcon className="w-4 h-4 mr-2 text-gray-400" />
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                    <DocumentTextIcon className="w-4 h-4 mr-2 text-gray-500" />
                     Assignment Details
                 </h4>
-                {/* Fix: Use 'points_possible' property */}
-                <span className="text-sm font-semibold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md">{assignment.points_possible} points</span>
+                <span className="text-sm font-semibold text-blue-700 bg-blue-100 dark:text-blue-200 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">{assignment.points_possible} points</span>
             </div>
             <div 
-                className="prose prose-sm prose-invert max-w-none text-gray-300 max-h-40 overflow-y-auto bg-gray-900/50 p-3 rounded-md border border-gray-700"
+                className="prose prose-sm max-w-none text-gray-600 dark:text-gray-300 dark:prose-invert max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md border border-gray-200 dark:border-gray-600"
                 dangerouslySetInnerHTML={{ __html: assignment.description || '' }}
             />
           </div>
@@ -220,7 +217,7 @@ const AssignmentCard: React.FC<{
             <select
                 value={assignment.status}
                 onChange={(e) => onStatusChange(assignment.id, e.target.value as AssignmentStatus)}
-                className="bg-gray-700 text-gray-200 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
                 <option value="NOT_STARTED">Not Started</option>
                 <option value="IN_PROGRESS">In Progress</option>
@@ -257,7 +254,6 @@ const AssignmentsView: React.FC<{ courses: Course[]; assignments: Assignment[] }
 
     const handleStatusChange = (assignmentId: number, status: AssignmentStatus) => {
         setAssignmentStatuses(prev => ({...prev, [assignmentId]: status}));
-        // Note: In a real app, this change would be persisted to a backend.
     };
 
     const filteredAssignments = useMemo(() => {
@@ -276,8 +272,8 @@ const AssignmentsView: React.FC<{ courses: Course[]; assignments: Assignment[] }
     return (
         <div className="animate-fade-in">
             <style>{`
-                .btn-ai { @apply bg-gray-700 text-gray-200 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors hover:bg-gray-600 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed; }
-                .btn-ai-primary { @apply bg-blue-500 text-white px-3 py-1.5 text-xs font-semibold rounded-md transition-colors hover:bg-blue-600 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed; }
+                .btn-ai { @apply bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed; }
+                .btn-ai-primary { @apply bg-blue-600 text-white px-3 py-1.5 text-xs font-semibold rounded-md transition-colors hover:bg-blue-500 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed; }
                 @keyframes shake {
                   10%, 90% { transform: translate3d(-1px, 0, 0); }
                   20%, 80% { transform: translate3d(2px, 0, 0); }
@@ -289,11 +285,11 @@ const AssignmentsView: React.FC<{ courses: Course[]; assignments: Assignment[] }
                 }
             `}</style>
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold text-white">Assignments</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Assignments</h1>
                 <select 
                     value={selectedCourseId}
                     onChange={(e) => setSelectedCourseId(e.target.value)}
-                    className="bg-gray-800 border border-gray-700 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md py-2 px-3 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                     <option value="all">All Courses</option>
                     {courses.map(course => (
@@ -319,8 +315,8 @@ const AssignmentsView: React.FC<{ courses: Course[]; assignments: Assignment[] }
                        )
                    })
                 ) : (
-                   <div className="text-center py-20 bg-gray-800 rounded-lg">
-                     <p className="text-gray-400">No assignments found for the selected filter.</p>
+                   <div className="text-center py-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                     <p className="text-gray-500 dark:text-gray-400">No assignments found for the selected filter.</p>
                    </div>
                 )}
             </div>

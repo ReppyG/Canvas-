@@ -28,7 +28,7 @@ const App: React.FC = () => {
 
     if (settings === null) {
         return (
-            <div className="bg-gray-900 text-white h-screen flex flex-col items-center justify-center">
+            <div className="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 h-screen flex flex-col items-center justify-center">
                 <Loader2Icon className="w-12 h-12 animate-spin text-blue-500" />
                 <p className="mt-4 text-lg">Loading Application...</p>
             </div>
@@ -37,7 +37,7 @@ const App: React.FC = () => {
 
     if (!isConfigured && !settings.sampleDataMode) {
         return (
-             <div className="bg-gray-900 min-h-screen text-white p-4">
+             <div className="bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-800 dark:text-gray-200 p-4">
                 <SettingsView 
                     settings={settings} 
                     onSave={saveSettings} 
@@ -71,13 +71,13 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="flex h-screen bg-gray-900 text-white font-sans">
+        <div className="flex h-screen bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 font-sans">
             <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Header assignments={assignments} connectionStatus={connectionStatus} />
                 <main className="flex-1 overflow-y-auto p-8 relative">
                     {loading && connectionStatus === 'live' ? (
-                         <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-10">
+                         <div className="absolute inset-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm flex items-center justify-center z-10">
                             <div className="text-center">
                                 <Loader2Icon className="w-10 h-10 animate-spin text-blue-500 mx-auto" />
                                 <p className="mt-3">Loading data from Canvas...</p>
@@ -89,7 +89,7 @@ const App: React.FC = () => {
             
             <button
                 onClick={() => setIsChatOpen(true)}
-                className="fixed bottom-8 right-8 bg-blue-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 transition-transform hover:scale-110 z-20"
+                className="fixed bottom-8 right-8 bg-blue-600 text-white w-16 h-16 rounded-full shadow-lg shadow-blue-500/30 flex items-center justify-center hover:bg-blue-500 transition-all duration-300 hover:scale-110 hover:shadow-xl hover:shadow-blue-500/40 dark:shadow-blue-900/30 dark:hover:shadow-blue-900/40 z-20"
                 aria-label="Open AI Assistant"
             >
                 <SparklesIcon className="w-8 h-8" />

@@ -1,6 +1,4 @@
-
 import { useState, useEffect } from 'react';
-// Fix: Import missing types
 import { Course, Assignment, CalendarEvent, Settings } from '../types';
 import * as apiService from '../services/canvasApiService';
 import * as mockService from '../services/canvasMockService';
@@ -8,6 +6,16 @@ import { storage } from '../services/storageService';
 
 const SETTINGS_KEY = 'canvasAiAssistantSettings';
 const CANVAS_ASSIGNMENT_IDS_KEY = 'canvasAiAssistantAssignmentIds';
+
+type CanvasService = {
+    getCourses: (settings: Settings) => Promise<Course[]>;
+    getAssignments: (settings: Settings) => Promise<Assignment[]>;
+}
+
+type MockCanvasService = {
+    getCourses: () => Promise<Course[]>;
+    getAssignments: () => Promise<Assignment[]>;
+}
 
 export const useCanvasData = (enabled: boolean) => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -30,6 +38,7 @@ export const useCanvasData = (enabled: boolean) => {
     }
 
     const fetchData = async () => {
+      setLoading(true);
       try {
         setError(null);
         setNewAssignments([]);
@@ -37,22 +46,18 @@ export const useCanvasData = (enabled: boolean) => {
         const settings = await storage.get<Settings>(SETTINGS_KEY);
         
         const useSampleData = settings?.sampleDataMode ?? false;
-        // Fix: Cast service to a common type to allow dynamic dispatch
-        const service: typeof apiService | typeof mockService = useSampleData ? mockService : apiService;
         
         setConnectionStatus(useSampleData ? 'sample' : 'live');
 
-        if (!useSampleData && !settings) {
+        if (!useSampleData && (!settings || !settings.canvasUrl || !settings.apiToken)) {
             setError("Canvas settings not configured.");
             setConnectionStatus('error');
+            setLoading(false);
             return;
         }
 
-        const [coursesData, assignmentsData] = await Promise.all([
-            // Fix: Pass settings to API calls and handle mock service's signature
-            service.getCourses(settings!),
-            service.getAssignments(settings!),
-        ]);
+        const coursesData = useSampleData ? await (mockService as MockCanvasService).getCourses() : await (apiService as CanvasService).getCourses(settings!);
+        const assignmentsData = useSampleData ? await (mockService as MockCanvasService).getAssignments() : await (apiService as CanvasService).getAssignments(settings!);
         
         if (!useSampleData && settings) {
             const newAssignmentIds = new Set(assignmentsData.map(a => a.id));
@@ -75,7 +80,6 @@ export const useCanvasData = (enabled: boolean) => {
           .map(a => ({
           id: a.id,
           title: a.name,
-          // Fix: Convert due_at string to Date object
           date: new Date(a.due_at!),
           type: a.name.toLowerCase().includes('quiz') ? 'quiz' : a.name.toLowerCase().includes('test') || a.name.toLowerCase().includes('exam') ? 'test' : 'assignment',
           course_id: a.course_id,
@@ -94,7 +98,6 @@ export const useCanvasData = (enabled: boolean) => {
       }
     };
     
-    setLoading(true);
     fetchData();
   }, [enabled]);
 

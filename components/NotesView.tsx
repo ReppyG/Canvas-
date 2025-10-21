@@ -4,18 +4,19 @@ import React, { useState } from 'react';
 // Fix: Import missing function
 import { generateNotesFromText } from '../services/geminiService';
 // Fix: Import missing icons
-import { SparklesIcon, UploadIcon, DocumentTextIcon, ClipboardIcon, ExclamationTriangleIcon } from './icons/Icons';
+// Fix: Replaced non-existent 'ClipboardIcon' with 'ClipboardListIcon' to resolve import error.
+import { SparklesIcon, UploadIcon, DocumentTextIcon, ClipboardListIcon, ExclamationTriangleIcon } from './icons/Icons';
 
 type InputType = 'text' | 'file';
 
 const SkeletonLoader: React.FC = () => (
     <div className="space-y-4 animate-pulse">
-        <div className="h-4 bg-gray-700 rounded w-1/4"></div>
-        <div className="h-3 bg-gray-700 rounded w-full"></div>
-        <div className="h-3 bg-gray-700 rounded w-5/6"></div>
-        <div className="h-4 bg-gray-700 rounded w-1/3 mt-6"></div>
-        <div className="h-3 bg-gray-700 rounded w-full"></div>
-        <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+        <div className="h-3 bg-gray-200 rounded w-full"></div>
+        <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/3 mt-6"></div>
+        <div className="h-3 bg-gray-200 rounded w-full"></div>
+        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
     </div>
 );
 
@@ -80,10 +81,10 @@ const NotesView: React.FC = () => {
     if (inputType === 'file') {
       return (
         <label htmlFor="file-upload" className="w-full cursor-pointer">
-          <div className="flex items-center justify-center w-full h-full min-h-[16rem] px-4 bg-gray-900/50 border-2 border-dashed border-gray-600 rounded-md hover:border-blue-500 transition-colors">
+          <div className="flex items-center justify-center w-full h-full min-h-[16rem] px-4 bg-gray-50 border-2 border-dashed border-gray-300 rounded-md hover:border-blue-500 transition-colors">
             <div className="text-center">
-              <UploadIcon className="w-8 h-8 text-gray-400 mx-auto mb-2"/>
-              <span className="text-gray-300 font-semibold">{file ? file.name : 'Click to select a file'}</span>
+              <UploadIcon className="w-8 h-8 text-gray-500 mx-auto mb-2"/>
+              <span className="text-gray-700 font-semibold">{file ? file.name : 'Click to select a file'}</span>
               <p className="text-xs text-gray-500 mt-1">.txt, .md, or other text files</p>
             </div>
           </div>
@@ -100,7 +101,7 @@ const NotesView: React.FC = () => {
             setFile(null);
         }}
         placeholder="e.g., Paste a chapter from your textbook, an academic article, or lecture transcript..."
-        className="w-full h-full min-h-[16rem] p-4 bg-gray-900/50 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-200 resize-y"
+        className="w-full h-full min-h-[16rem] p-4 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 resize-y"
       />
     );
   };
@@ -112,11 +113,11 @@ const NotesView: React.FC = () => {
     const isGenericAiError = error.startsWith('[AI Error]');
 
     return (
-        <div className={`mt-4 p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-300 text-sm`}>
+        <div className={`mt-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm`}>
             <div className="flex items-start">
-                <ExclamationTriangleIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-red-400"/>
+                <ExclamationTriangleIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-red-500"/>
                 <div>
-                    <h4 className="font-bold text-red-200">
+                    <h4 className="font-bold text-red-900">
                         {isConfigError ? "AI Service Not Configured" : "Generation Failed"}
                     </h4>
                     {isConfigError ? (
@@ -134,13 +135,13 @@ const NotesView: React.FC = () => {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-3xl font-bold text-white mb-2">AI Study Guide Generator</h1>
-      <p className="text-gray-400 mb-8">Generate a structured study guide from raw text or documents.</p>
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Study Guide Generator</h1>
+      <p className="text-gray-500 mb-8">Generate a structured study guide from raw text or documents.</p>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Input Panel */}
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 flex flex-col">
-          <div className="flex mb-4 border-b border-gray-700">
+        <div className="bg-white border border-gray-200 rounded-lg p-6 flex flex-col">
+          <div className="flex mb-4 border-b border-gray-200">
               <button onClick={() => setInputType('text')} className={`tab-button ${inputType === 'text' ? 'tab-active' : ''}`}>
                   <DocumentTextIcon className="w-5 h-5 mr-2"/>
                   From Text
@@ -157,7 +158,7 @@ const NotesView: React.FC = () => {
           <button
             onClick={handleGenerateNotes}
             disabled={(!file && !inputText.trim()) || isLoading}
-            className="w-full mt-4 flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+            className="w-full mt-4 flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
             <SparklesIcon className="w-5 h-5 mr-2" />
             {isLoading ? 'Generating...' : 'Generate Study Guide'}
@@ -165,15 +166,16 @@ const NotesView: React.FC = () => {
         </div>
 
         {/* Output Panel */}
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-            <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-700">
-              <h2 className="text-xl font-semibold text-white">Your Study Guide</h2>
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Your Study Guide</h2>
               <button 
                 onClick={handleCopy} 
                 disabled={!notes || isLoading}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors bg-gray-700 text-gray-200 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                  <ClipboardIcon className="w-4 h-4" />
+                  {/* Fix: Replaced non-existent ClipboardIcon with ClipboardListIcon. */}
+                  <ClipboardListIcon className="w-4 h-4" />
                   {isCopied ? 'Copied!' : 'Copy'}
               </button>
             </div>
@@ -181,7 +183,7 @@ const NotesView: React.FC = () => {
               {isLoading ? (
                 <SkeletonLoader />
               ) : notes ? (
-                <div className="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap">
+                <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
                     {notes}
                 </div>
               ) : (
@@ -194,8 +196,8 @@ const NotesView: React.FC = () => {
         </div>
       </div>
       <style>{`
-        .tab-button { @apply flex items-center px-4 py-2 text-sm font-medium border-b-2 transition-colors text-gray-400 border-transparent hover:text-white; }
-        .tab-active { @apply border-blue-500 text-white; }
+        .tab-button { @apply flex items-center px-4 py-2 text-sm font-medium border-b-2 transition-colors text-gray-500 border-transparent hover:text-gray-900; }
+        .tab-active { @apply border-blue-500 text-blue-600; }
       `}</style>
     </div>
   );

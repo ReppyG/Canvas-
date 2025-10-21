@@ -1,10 +1,7 @@
-
-
 import React from 'react';
-// Fix: Import missing Page type
 import { Page } from '../types';
-// Fix: Import missing icon components
 import { HomeIcon, BookOpenIcon, ClipboardListIcon, BrainIcon, MessageCircleIcon, LinkIcon, SettingsIcon } from './icons/Icons';
+import ThemeSwitcher from './ThemeSwitcher';
 
 interface SidebarProps {
   currentPage: Page;
@@ -28,8 +25,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage }) => {
             onClick={() => setCurrentPage(item.page)}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors w-full text-left ${
                 isActive
-                ? 'bg-slate-800 text-white'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300 font-semibold'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'
             }`}
         >
             {React.cloneElement(item.icon, { className: 'w-5 h-5' })}
@@ -40,9 +37,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage }) => {
 
 
   return (
-    <div className="w-64 bg-slate-900 text-white flex flex-col">
+    <div className="w-64 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 flex flex-col border-r border-gray-200 dark:border-gray-700">
       <div className="p-6 h-20 flex items-center">
-        <h1 className="text-2xl font-bold">StudyPlatform</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">StudyPlatform</h1>
       </div>
        <div className="flex-1 flex flex-col justify-between overflow-y-auto">
         <nav className="px-4 space-y-1">
@@ -51,12 +48,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage }) => {
           ))}
         </nav>
         <div className="px-4 py-4 mt-4">
+             <ThemeSwitcher />
              <button
               onClick={() => setCurrentPage(Page.Settings)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors w-full text-left ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors w-full text-left mt-1 ${
                 currentPage === Page.Settings
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'
               }`}
             >
               <SettingsIcon className="w-5 h-5" />

@@ -7,7 +7,6 @@ export interface Course {
     course_code: string;
 }
 
-// Fix: Add AssignmentStatus type
 export type AssignmentStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 
 export interface Assignment {
@@ -18,8 +17,15 @@ export interface Assignment {
     points_possible: number | null;
     course_id: number;
     courseName: string; // Enriched in the app
-    // Fix: Add status property to Assignment
-    status?: AssignmentStatus;
+    status: AssignmentStatus;
+}
+
+export interface CalendarEvent {
+    id: number;
+    course_id: number;
+    title: string;
+    date: Date;
+    type: 'assignment' | 'test' | 'quiz';
 }
 
 // AI Study Plan types
@@ -71,24 +77,14 @@ export interface Summary {
 export interface ChatMessage {
     role: 'user' | 'assistant';
     content: string;
-    timestamp: Date;
 }
 
-// Fix: Add AiTutorMessage for the other UI
 export interface AiTutorMessage {
     role: 'user' | 'model';
     text: string;
 }
 
 // App related types
-export type View = 'setup' | 'dashboard' | 'planner' | 'summarizer' | 'tutor';
-
-export interface CanvasConfig {
-    domain: string;
-    accessToken: string;
-}
-
-// Fix: Add Page enum for the other UI
 export enum Page {
     Dashboard,
     Courses,
@@ -99,18 +95,8 @@ export enum Page {
     Settings
 }
 
-// Fix: Add Settings interface for the other UI
 export interface Settings {
     canvasUrl: string;
     apiToken: string;
     sampleDataMode: boolean;
-}
-
-// Fix: Add CalendarEvent interface for the other UI
-export interface CalendarEvent {
-    id: number;
-    course_id: number;
-    title: string;
-    date: Date;
-    type: 'assignment' | 'test' | 'quiz';
 }

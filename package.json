@@ -11,16 +11,11 @@
   },
   "dependencies": {
     "@google/genai": "^1.23.0",
-    "cors": "^2.8.5",
     "date-fns": "^4.1.0",
-    "express": "^4.19.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.268",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
@@ -32,12 +27,4 @@
     "typescript": "^5.0.2",
     "vite": "^4.4.5"
   }
-}
-{
-  "dev": "vite",
-  "build": "vite build",
-  "start": "vite preview --port $PORT",
-  "typecheck": "tsc --noEmit",
-  "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
-  "test": "vitest"
 }

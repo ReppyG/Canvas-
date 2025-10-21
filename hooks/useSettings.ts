@@ -1,6 +1,4 @@
-
 import { useState, useEffect, useCallback } from 'react';
-// Fix: Import missing Settings type
 import { Settings } from '../types';
 import { storage } from '../services/storageService';
 
