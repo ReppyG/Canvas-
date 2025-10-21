@@ -1,73 +1,72 @@
-import { ApiService } from './apiService';
+import React, { useState, useEffect } from 'react';
+import { Assignment } from '../types';
+import { format } from 'date-fns';
 
-/**
- * Header component for displaying date/time and user info
- */
-export class HeaderComponent {
-  private element: HTMLElement;
-  private apiService: ApiService;
-  private timeInterval: number | null = null;
-  
-  /**
-   * Initialize the header component
-   * @param elementId DOM element ID for the header
-   * @param apiService API service instance
-   */
-  constructor(elementId: string, apiService: ApiService) {
-    this.element = document.getElementById(elementId) || document.createElement('div');
-    if (!document.getElementById(elementId)) {
-      this.element.id = elementId;
-      document.body.prepend(this.element);
-    }
-    this.apiService = apiService;
-  }
-  
-  /**
-   * Start the header component with timer
-   */
-  start(): void {
-    this.render();
-    
-    // Update time every second
-    this.timeInterval = window.setInterval(() => {
-      this.updateDateTime();
+interface HeaderProps {
+  assignments: Assignment[];
+  connectionStatus: 'live' | 'mock' | 'connecting';
+}
+
+const Header: React.FC<HeaderProps> = ({ assignments, connectionStatus }) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
     }, 1000);
-  }
-  
-  /**
-   * Stop the timer
-   */
-  stop(): void {
-    if (this.timeInterval !== null) {
-      clearInterval(this.timeInterval);
-      this.timeInterval = null;
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDateTime = (date: Date) => {
+    return format(date, 'yyyy-MM-dd HH:mm:ss');
+  };
+
+  const urgentCount = assignments.filter(a => {
+    if (!a.due_at) return false;
+    const dueDate = new Date(a.due_at);
+    const now = new Date();
+    const hoursUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    return hoursUntilDue > 0 && hoursUntilDue < 24;
+  }).length;
+
+  const getConnectionStatusColor = () => {
+    switch (connectionStatus) {
+      case 'live':
+        return 'text-green-400';
+      case 'mock':
+        return 'text-yellow-400';
+      case 'connecting':
+        return 'text-blue-400';
+      default:
+        return 'text-gray-400';
     }
-  }
-  
-  /**
-   * Render the header component
-   */
-  render(): void {
-    this.element.innerHTML = `
-      <div class="canvas-header">
-        <div class="datetime-display">
-          Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): 
-          <span id="current-datetime">${this.apiService.getCurrentDateTime()}</span>
+  };
+
+  return (
+    <header className="bg-gray-800 border-b border-gray-700 px-8 py-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <h1 className="text-xl font-bold text-white">Canvas AI Assistant</h1>
+          <span className={`text-sm ${getConnectionStatusColor()}`}>
+            {connectionStatus === 'live' ? '● Live' : connectionStatus === 'mock' ? '● Demo Mode' : '● Connecting...'}
+          </span>
         </div>
-        <div class="user-info">
-          Current User's Login: <span id="current-user-login">${this.apiService.getUserLogin()}</span>
+        <div className="flex items-center space-x-6">
+          {urgentCount > 0 && (
+            <div className="flex items-center space-x-2 bg-red-900/30 px-3 py-1 rounded-full">
+              <span className="text-red-400 text-sm font-medium">
+                {urgentCount} urgent {urgentCount === 1 ? 'assignment' : 'assignments'}
+              </span>
+            </div>
+          )}
+          <div className="text-sm text-gray-400">
+            {formatDateTime(currentTime)}
+          </div>
         </div>
       </div>
-    `;
-  }
-  
-  /**
-   * Update just the date/time part
-   */
-  updateDateTime(): void {
-    const datetimeElement = this.element.querySelector('#current-datetime');
-    if (datetimeElement) {
-      datetimeElement.textContent = this.apiService.getCurrentDateTime();
-    }
-  }
-}
+    </header>
+  );
+};
+
+export default Header;
