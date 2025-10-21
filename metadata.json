@@ -1,5 +1,7 @@
 {
   "name": "AI-Powered Student Platform",
   "description": "A comprehensive student dashboard that uses AI to help manage assignments, generate study guides, and connect with learning management systems. Built for the modern student.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

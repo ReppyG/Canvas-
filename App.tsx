@@ -60,7 +60,7 @@ const App: React.FC = () => {
             case Page.AiTools:
                 return <AiToolsView assignments={assignments} courses={courses} />;
             case Page.Chat:
-                return <ChatView />;
+                return <ChatView courses={courses} assignments={assignments} />;
             case Page.Integrations:
                 return <IntegrationsView connectionStatus={connectionStatus} />;
             case Page.Settings:

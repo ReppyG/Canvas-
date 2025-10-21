@@ -1,4 +1,6 @@
 // Fix: Import explicit types from express to resolve type errors.
+// Fix: Changed import to use default express and namespace to avoid type conflicts with global Request/Response.
+// Fix: Import `Request` and `Response` types directly from express.
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -21,10 +23,14 @@ app.use('/', express.static(path.join(__dirname, '..', 'dist')));
 
 // Health check endpoint for Render
 // Fix: Add explicit types for req and res to resolve express typing issue.
+// Fix: Use express.Request and express.Response to avoid ambiguity with global types.
+// Fix: Use `Request` and `Response` types imported from express.
 app.get('/api/health', (req: Request, res: Response) => {
     res.status(200).send('OK');
 });
 
+// Fix: Use express.Request and express.Response to avoid ambiguity with global types.
+// Fix: Use `Request` and `Response` types imported from express.
 app.get('/api/canvas-proxy', async (req: Request, res: Response) => {
     const endpoint = req.query.endpoint as string;
 
@@ -77,6 +83,8 @@ app.get('/api/canvas-proxy', async (req: Request, res: Response) => {
 
 // Add a catch-all route to serve the main index.html file for any non-API routes.
 // This is essential for single-page applications that use client-side routing.
+// Fix: Use express.Request and express.Response to avoid ambiguity with global types.
+// Fix: Use `Request` and `Response` types imported from express.
 app.get('*', (req: Request, res: Response) => {
     if (!req.path.startsWith('/api/')) {
         res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));

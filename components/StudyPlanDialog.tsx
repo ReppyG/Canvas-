@@ -47,6 +47,7 @@ const StudyPlanDialog: React.FC<StudyPlanDialogProps> = ({ assignment, course, i
   const [isGenerating, setIsGenerating] = useState(false);
   const [plan, setPlan] = useState<StudyPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [enableThinking, setEnableThinking] = useState(false);
 
   const handleStepToggle = (stepIndex: number, isCompleted: boolean) => {
     if (!plan) return;
@@ -58,29 +59,42 @@ const StudyPlanDialog: React.FC<StudyPlanDialogProps> = ({ assignment, course, i
   
   useEffect(() => {
     const fetchPlan = async () => {
-      if (!isOpen || plan) return;
-      setIsGenerating(true);
-      setError(null);
-      try {
-        const resultPlan = await generateStudyPlan(assignment);
-        if (resultPlan) {
-            const planWithState: StudyPlan = {
-                ...resultPlan,
-                steps: resultPlan.steps.map(step => ({ ...step, completed: false }))
-            };
-            setPlan(planWithState);
-        } else {
-            setError("[AI Error] The AI returned an empty or invalid study plan.");
+      if (!isOpen) return;
+      // Reset state when opening for a new assignment, but not if just toggling thinking mode
+      if (plan?.title.includes(assignment.name) === false) {
+          setPlan(null);
+          setError(null);
+      }
+
+      if (isOpen && !plan && !isGenerating) {
+        setIsGenerating(true);
+        setError(null);
+        try {
+            const resultPlan = await generateStudyPlan(assignment, { enableThinking });
+            if (resultPlan) {
+                const planWithState: StudyPlan = {
+                    ...resultPlan,
+                    steps: resultPlan.steps.map(step => ({ ...step, completed: false }))
+                };
+                setPlan(planWithState);
+            } else {
+                setError("[AI Error] The AI returned an empty or invalid study plan.");
+            }
+        } catch (e: any) {
+            console.error("Failed to generate or parse study plan", e);
+            setError(e.message || "[Client Error] Failed to generate the study plan.");
+        } finally {
+            setIsGenerating(false);
         }
-      } catch (e: any) {
-        console.error("Failed to generate or parse study plan", e);
-        setError(e.message || "[Client Error] Failed to generate the study plan.");
-      } finally {
-        setIsGenerating(false);
       }
     };
     fetchPlan();
-  }, [isOpen, assignment, plan]);
+  }, [isOpen, assignment, plan, isGenerating, enableThinking]);
+
+  const regeneratePlan = () => {
+      setPlan(null);
+      setError(null);
+  }
 
   if (!isOpen) return null;
 
@@ -99,6 +113,24 @@ const StudyPlanDialog: React.FC<StudyPlanDialogProps> = ({ assignment, course, i
                 <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"><XIcon/></button>
             </div>
             <div className="flex-1 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+                {!plan && !isGenerating && !error && (
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-lg mb-6">
+                        <label htmlFor="thinking-toggle" className="flex items-center cursor-pointer">
+                            <div className="relative">
+                                <input id="thinking-toggle" type="checkbox" className="sr-only" checked={enableThinking} onChange={e => {
+                                    setEnableThinking(e.target.checked);
+                                    regeneratePlan();
+                                }} />
+                                <div className="block bg-gray-200 dark:bg-gray-600 w-11 h-6 rounded-full"></div>
+                                <div className={`dot absolute left-1 top-1 bg-white dark:bg-gray-400 w-4 h-4 rounded-full transition-transform ${enableThinking ? 'translate-x-5 !bg-blue-600 dark:!bg-blue-500' : ''}`}></div>
+                            </div>
+                            <div className="ml-3 text-sm text-gray-700 dark:text-gray-300">
+                                <span className="font-semibold">Enable Thinking Mode</span>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Slower, more detailed results for complex assignments.</p>
+                            </div>
+                        </label>
+                    </div>
+                )}
                 {isGenerating && <SkeletonLoader />}
                 {error && <div className="text-red-700 bg-red-100 border border-red-200 p-4 rounded-lg dark:bg-red-900/50 dark:text-red-300 dark:border-red-800">{error}</div>}
                 {plan && (

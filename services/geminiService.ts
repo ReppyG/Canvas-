@@ -1,10 +1,10 @@
-import { GoogleGenAI, Type, Chat } from "@google/genai";
-import { Assignment, StudyPlan, Summary, ChatMessage, AiTutorMessage } from "../types";
+import { GoogleGenAI, Type, Chat, Connection, LiveServerMessage, Modality, Blob } from "@google/genai";
+import { Assignment, StudyPlan, Summary, ChatMessage } from "../types";
 
 let ai: GoogleGenAI | null = null;
 const studyPlanModel = "gemini-2.5-pro";
 const summaryModel = "gemini-2.5-pro";
-const tutorModel = "gemini-2.5-flash";
+const tutorModel = "gemini-flash-lite-latest";
 
 function getClient(): GoogleGenAI {
     if (ai) return ai;
@@ -30,8 +30,11 @@ const handleApiError = (error: unknown) : never => {
     throw new Error("[AI Error] An unknown error occurred while communicating with the AI.");
 }
 
+interface GenerationOptions {
+    enableThinking?: boolean;
+}
 
-export const generateStudyPlan = async (assignment: Assignment): Promise<StudyPlan> => {
+export const generateStudyPlan = async (assignment: Assignment, options?: GenerationOptions): Promise<StudyPlan> => {
     const client = getClient();
     const daysUntilDue = assignment.due_at ? Math.ceil((new Date(assignment.due_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 'N/A';
 
@@ -79,12 +82,17 @@ Create a JSON study plan. Make it practical, actionable, and tailored to the tim
         },
         required: ['title', 'estimatedHours', 'steps', 'milestones']
     };
+    
+    const config: any = { responseMimeType: "application/json", responseSchema: schema };
+    if (options?.enableThinking) {
+        config.thinkingConfig = { thinkingBudget: 32768 };
+    }
 
     try {
         const response = await client.models.generateContent({
             model: studyPlanModel,
             contents: prompt,
-            config: { responseMimeType: "application/json", responseSchema: schema }
+            config: config
         });
         return JSON.parse(response.text) as StudyPlan;
     } catch(error) {
@@ -92,7 +100,7 @@ Create a JSON study plan. Make it practical, actionable, and tailored to the tim
     }
 };
 
-export const generateSummary = async (content: string): Promise<Summary> => {
+export const generateSummary = async (content: string, options?: GenerationOptions): Promise<Summary> => {
     const client = getClient();
     const prompt = `You are an expert educator. Summarize this educational content in a structured way.
 Content to summarize:
@@ -130,11 +138,16 @@ Output ONLY a valid JSON object matching the provided schema.`;
         required: ['title', 'mainTopics', 'keyPoints', 'definitions', 'examples', 'studyTips']
     };
     
+    const config: any = { responseMimeType: "application/json", responseSchema: schema };
+    if (options?.enableThinking) {
+        config.thinkingConfig = { thinkingBudget: 32768 };
+    }
+    
     try {
         const response = await client.models.generateContent({
             model: summaryModel,
             contents: prompt,
-            config: { responseMimeType: "application/json", responseSchema: schema }
+            config: config
         });
         return JSON.parse(response.text) as Summary;
     } catch(error) {
@@ -167,7 +180,7 @@ export const generateText = async (prompt: string): Promise<string> => {
     const client = getClient();
     try {
         const response = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-flash-lite-latest',
             contents: prompt,
         });
         return response.text;
@@ -176,13 +189,18 @@ export const generateText = async (prompt: string): Promise<string> => {
     }
 };
 
-export const summarizeDocument = async (content: string): Promise<string> => {
+export const summarizeDocument = async (content: string, options?: GenerationOptions): Promise<string> => {
     const client = getClient();
     const prompt = `Summarize this document concisely:\n\n${content}`;
+    const config: any = {};
+    if (options?.enableThinking) {
+        config.thinkingConfig = { thinkingBudget: 32768 };
+    }
     try {
         const response = await client.models.generateContent({
             model: summaryModel,
             contents: prompt,
+            config: config,
         });
         return response.text;
     } catch (error) {
@@ -190,15 +208,20 @@ export const summarizeDocument = async (content: string): Promise<string> => {
     }
 };
 
-export const generateNotesFromText = async (content: string): Promise<string> => {
+export const generateNotesFromText = async (content: string, options?: GenerationOptions): Promise<string> => {
     const client = getClient();
     const prompt = `You are an expert student. Create a structured study guide from the following text. Use markdown for formatting, including headings, bullet points, and bold text for key terms.
     Content to process:
     ${content}`;
+    const config: any = {};
+    if (options?.enableThinking) {
+        config.thinkingConfig = { thinkingBudget: 32768 };
+    }
     try {
         const response = await client.models.generateContent({
             model: summaryModel,
             contents: prompt,
+            config: config,
         });
         return response.text;
     } catch (error) {
@@ -247,4 +270,93 @@ export const createGlobalAssistantChat = (context: string): Chat => {
         },
     });
     return chat;
+};
+
+export const analyzeImage = async (base64Data: string, mimeType: string, prompt: string): Promise<string> => {
+    const client = getClient();
+    try {
+        const imagePart = {
+            inlineData: {
+                mimeType: mimeType,
+                data: base64Data,
+            },
+        };
+        const textPart = {
+            text: prompt
+        };
+        const response = await client.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [imagePart, textPart] },
+        });
+        return response.text;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// --- Live Transcription Service ---
+
+function encode(bytes: Uint8Array) {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+export function createAudioBlob(data: Float32Array): Blob {
+  const l = data.length;
+  const int16 = new Int16Array(l);
+  for (let i = 0; i < l; i++) {
+    int16[i] = data[i] * 32768;
+  }
+  return {
+    data: encode(new Uint8Array(int16.buffer)),
+    mimeType: 'audio/pcm;rate=16000',
+  };
+}
+
+export const startTranscriptionSession = async (
+    callbacks: {
+        onTranscriptionUpdate: (text: string, isFinal: boolean) => void,
+        onError: (error: Error) => void,
+        onClose: () => void,
+    }
+// Fix: Use the correct `Connection` type instead of the removed `LiveSession` type.
+): Promise<Connection> => {
+    const client = getClient();
+    try {
+        const sessionPromise = client.live.connect({
+            model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+            callbacks: {
+                onopen: () => {
+                    console.log('Live session opened for transcription.');
+                },
+                onmessage: (message: LiveServerMessage) => {
+                    // We only care about the input transcription, ignore any audio output
+                    if (message.serverContent?.inputTranscription) {
+                        const text = message.serverContent.inputTranscription.text;
+                        const isFinal = message.serverContent.turnComplete ?? false;
+                        callbacks.onTranscriptionUpdate(text, isFinal);
+                    }
+                },
+                onerror: (e: ErrorEvent) => {
+                    console.error('Live session error:', e);
+                    callbacks.onError(new Error(e.message || "An unknown live session error occurred."));
+                },
+                onclose: (e: CloseEvent) => {
+                    console.log('Live session closed.');
+                    callbacks.onClose();
+                },
+            },
+            config: {
+                responseModalities: [Modality.AUDIO], // Required by the API
+                inputAudioTranscription: {},
+            },
+        });
+        return sessionPromise;
+    } catch (error) {
+        handleApiError(error);
+    }
 };

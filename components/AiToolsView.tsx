@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Assignment, Course } from '../types';
-import { SparklesIcon, DocumentTextIcon, BrainIcon } from './icons/Icons';
+import { SparklesIcon, DocumentTextIcon, BrainIcon, ImageIcon, MicIcon } from './icons/Icons';
 import { generateNotesFromText, summarizeDocument } from '../services/geminiService';
+import ImageAnalyzerModal from './ImageAnalyzerModal';
+import AudioTranscriberModal from './AudioTranscriberModal';
 
 type AiFeature = 'summarizer' | 'studyGuide';
 
@@ -33,6 +35,7 @@ const TextAiModal: React.FC<{
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState('');
     const [error, setError] = useState('');
+    const [enableThinking, setEnableThinking] = useState(false);
     
     const featureConfig = {
         summarizer: {
@@ -61,7 +64,7 @@ const TextAiModal: React.FC<{
         setError('');
 
         try {
-            const apiResult = await config.action(inputText);
+            const apiResult = await config.action(inputText, { enableThinking });
             setResult(apiResult);
         } catch (e: any) {
             setError(e.message || 'An unexpected client error occurred.');
@@ -81,7 +84,19 @@ const TextAiModal: React.FC<{
                 <div className="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
                     {/* Input Side */}
                     <div className="flex flex-col gap-4">
-                        <h3 className="font-semibold text-gray-900 dark:text-white">{config.description}</h3>
+                         <div className="p-4 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                            <label htmlFor="thinking-toggle" className="flex items-center cursor-pointer">
+                                <div className="relative">
+                                    <input id="thinking-toggle" type="checkbox" className="sr-only" checked={enableThinking} onChange={e => setEnableThinking(e.target.checked)} />
+                                    <div className="block bg-gray-200 dark:bg-gray-600 w-11 h-6 rounded-full"></div>
+                                    <div className={`dot absolute left-1 top-1 bg-white dark:bg-gray-400 w-4 h-4 rounded-full transition-transform ${enableThinking ? 'translate-x-5 !bg-blue-600 dark:!bg-blue-500' : ''}`}></div>
+                                </div>
+                                <div className="ml-3 text-sm text-gray-700 dark:text-gray-300">
+                                    <span className="font-semibold">Enable Thinking Mode</span>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Slower, more detailed results.</p>
+                                </div>
+                            </label>
+                        </div>
                         <textarea
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
@@ -120,8 +135,10 @@ const TextAiModal: React.FC<{
 }
 
 
-const AiToolsView: React.FC<{ assignments: Assignment[]; courses: Course[] }> = ({ assignments, courses }) => {
-  const [activeModal, setActiveModal] = useState<AiFeature | null>(null);
+const AiToolsView: React.FC<{ assignments: Assignment[]; courses: Course[] }> = () => {
+  const [activeTextModal, setActiveTextModal] = useState<AiFeature | null>(null);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
 
   return (
     <div className="animate-fade-in">
@@ -133,13 +150,25 @@ const AiToolsView: React.FC<{ assignments: Assignment[]; courses: Course[] }> = 
           icon={<DocumentTextIcon className="w-6 h-6 text-blue-500" />}
           title="AI Summarizer"
           description="Condense articles, papers, or notes into key points."
-          onClick={() => setActiveModal('summarizer')}
+          onClick={() => setActiveTextModal('summarizer')}
         />
         <FeatureCard
           icon={<BrainIcon className="w-6 h-6 text-purple-500" />}
           title="Study Guide Generator"
           description="Create structured study guides from your course materials."
-          onClick={() => setActiveModal('studyGuide')}
+          onClick={() => setActiveTextModal('studyGuide')}
+        />
+        <FeatureCard
+          icon={<ImageIcon className="w-6 h-6 text-green-500" />}
+          title="Image Analyzer"
+          description="Upload an image and ask questions about its content."
+          onClick={() => setIsImageModalOpen(true)}
+        />
+        <FeatureCard
+          icon={<MicIcon className="w-6 h-6 text-red-500" />}
+          title="Audio Transcriber"
+          description="Record your voice and get a live transcription."
+          onClick={() => setIsAudioModalOpen(true)}
         />
         <div className="md:col-span-2 bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-dashed border-blue-200 dark:border-blue-800/50 text-center">
             <h3 className="font-semibold text-blue-900 dark:text-blue-200 text-lg flex items-center justify-center gap-2"><SparklesIcon className="w-5 h-5 text-yellow-500" /> Assignment-Specific Tools</h3>
@@ -149,7 +178,9 @@ const AiToolsView: React.FC<{ assignments: Assignment[]; courses: Course[] }> = 
         </div>
       </div>
       
-      {activeModal && <TextAiModal feature={activeModal} onClose={() => setActiveModal(null)} />}
+      {activeTextModal && <TextAiModal feature={activeTextModal} onClose={() => setActiveTextModal(null)} />}
+      {isImageModalOpen && <ImageAnalyzerModal onClose={() => setIsImageModalOpen(false)} />}
+      {isAudioModalOpen && <AudioTranscriberModal onClose={() => setIsAudioModalOpen(false)} />}
     </div>
   );
 };
