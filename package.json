@@ -33,3 +33,11 @@
     "vite": "^4.4.5"
   }
 }
+{
+  "dev": "vite",
+  "build": "vite build",
+  "start": "vite preview --port $PORT",
+  "typecheck": "tsc --noEmit",
+  "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+  "test": "vitest"
+}
