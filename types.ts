@@ -26,6 +26,7 @@ export interface CalendarEvent {
     title: string;
     date: Date;
     type: 'assignment' | 'test' | 'quiz';
+    courseName?: string;
 }
 
 // AI Study Plan types
@@ -80,6 +81,7 @@ export interface ChatMessage {
 }
 
 export interface GroundingSource {
+    type: 'web' | 'map';
     uri: string;
     title: string;
 }
@@ -90,6 +92,30 @@ export interface AiTutorMessage {
     sources?: GroundingSource[];
 }
 
+// Note taking types
+export interface Note {
+    id: string;
+    title: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+// User-to-user Chat types
+export interface UserChatMessage {
+    id: string;
+    conversationId: string;
+    senderId: string;
+    text: string;
+    timestamp: string;
+}
+
+export interface ConversationSummary {
+    peerId: string;
+    lastMessage: string;
+    timestamp: string;
+}
+
 // App related types
 export enum Page {
     Dashboard,
@@ -97,6 +123,7 @@ export enum Page {
     Assignments,
     AiTools,
     Chat,
+    Notes,
     Integrations,
     Settings
 }

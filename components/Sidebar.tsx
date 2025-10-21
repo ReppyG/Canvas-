@@ -1,22 +1,25 @@
 import React from 'react';
-import { Page } from '../types';
-import { HomeIcon, BookOpenIcon, ClipboardListIcon, BrainIcon, MessageCircleIcon, LinkIcon, SettingsIcon } from './icons/Icons';
+import { Page, Settings } from '../types';
+import { HomeIcon, BookOpenIcon, ClipboardListIcon, BrainIcon, UsersIcon, LinkIcon, SettingsIcon, DocumentTextIcon } from './icons/Icons';
 import ThemeSwitcher from './ThemeSwitcher';
 
 interface SidebarProps {
   currentPage: Page;
   setCurrentPage: (page: Page) => void;
+  settings: Settings | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, settings }) => {
   const navItems = [
     { page: Page.Dashboard, icon: <HomeIcon />, label: 'Dashboard' },
     { page: Page.Courses, icon: <BookOpenIcon />, label: 'Courses' },
     { page: Page.Assignments, icon: <ClipboardListIcon />, label: 'Assignments' },
     { page: Page.AiTools, icon: <BrainIcon />, label: 'AI Tools' },
-    { page: Page.Chat, icon: <MessageCircleIcon />, label: 'Chat' },
+    { page: Page.Chat, icon: <UsersIcon />, label: 'Chat' },
+    { page: Page.Notes, icon: <DocumentTextIcon />, label: 'Notes' },
     { page: Page.Integrations, icon: <LinkIcon />, label: 'Integrations' },
   ];
+
 
   const NavLink: React.FC<{item: typeof navItems[0]}> = ({ item }) => {
     const isActive = currentPage === item.page;
@@ -29,7 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage }) => {
                 : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'
             }`}
         >
-            {React.cloneElement(item.icon, { className: 'w-5 h-5' })}
+            {React.cloneElement(item.icon, { className: 'w-5 h-5 flex-shrink-0' })}
             <span>{item.label}</span>
         </button>
     );
@@ -57,7 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage }) => {
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'
               }`}
             >
-              <SettingsIcon className="w-5 h-5" />
+              <SettingsIcon className="w-5 h-5 flex-shrink-0" />
               <span>Settings</span>
             </button>
         </div>

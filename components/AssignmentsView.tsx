@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Course, Assignment, AiTutorMessage, Settings, AssignmentStatus } from '../types';
 import { format } from 'date-fns';
 import { estimateAssignmentTime, createTutorChat } from '../services/geminiService';
@@ -22,13 +22,13 @@ const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> =
         }
     }, [assignment]);
     
-    useEffect(() => {
+    useState(() => {
         if (!chat) {
             setMessages([{ role: 'model', text: 'Failed to initialize AI Tutor. The Gemini API key may be missing or invalid.' }]);
         } else {
             setMessages([{ role: 'model', text: `Hello! I'm here to help you with your "${assignment.name}" assignment. Ask me anything to get started.` }]);
         }
-    }, [chat, assignment.name]);
+    });
 
     const sendMessage = async () => {
         if (!chat) {
@@ -129,16 +129,16 @@ const AssignmentCard: React.FC<{
     const [isEstimatingTime, setIsEstimatingTime] = useState(false);
     const [canvasLink, setCanvasLink] = useState<string | null>(null);
 
-    useEffect(() => {
+    useState(() => {
         const SETTINGS_KEY = 'canvasAiAssistantSettings';
         const loadSettings = async () => {
             const settings = await storage.get<Settings>(SETTINGS_KEY);
             if (settings?.canvasUrl && assignment.course_id && assignment.id) {
-                setCanvasLink(`${settings.canvasUrl}/courses/${assignment.course_id}/assignments/${assignment.id}`);
+                setCanvasLink(`https://${settings.canvasUrl}/courses/${assignment.course_id}/assignments/${assignment.id}`);
             }
         };
         loadSettings();
-    }, [assignment.course_id, assignment.id]);
+    });
 
     const handleEstimateTime = async (forceRefresh = false) => {
         setIsEstimatingTime(true);
@@ -163,10 +163,9 @@ const AssignmentCard: React.FC<{
         }
     };
 
-    useEffect(() => {
+    useState(() => {
         handleEstimateTime();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [assignment.id]);
+    });
 
     return (
       <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:border-blue-500/50">
@@ -207,10 +206,15 @@ const AssignmentCard: React.FC<{
                 </h4>
                 <span className="text-sm font-semibold text-blue-700 bg-blue-100 dark:text-blue-200 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">{assignment.points_possible} points</span>
             </div>
-            <div 
-                className="prose prose-sm max-w-none text-gray-600 dark:text-gray-300 dark:prose-invert max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md border border-gray-200 dark:border-gray-600"
-                dangerouslySetInnerHTML={{ __html: assignment.description || '' }}
-            />
+            <button
+                onClick={() => onTutorClick(assignment)}
+                className="w-full text-left"
+            >
+                <div 
+                    className="prose prose-sm max-w-none text-gray-600 dark:text-gray-300 dark:prose-invert max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-colors cursor-pointer"
+                    dangerouslySetInnerHTML={{ __html: assignment.description || '<p>No description provided. Click here to ask the AI Tutor for help.</p>' }}
+                />
+            </button>
           </div>
           
           <div className="mt-4 flex flex-wrap gap-4 items-center justify-between">
@@ -238,34 +242,57 @@ const AssignmentCard: React.FC<{
     );
 };
 
-const AssignmentsView: React.FC<{ courses: Course[]; assignments: Assignment[] }> = ({ courses, assignments }) => {
-    const [selectedCourseId, setSelectedCourseId] = useState<string>('all');
+interface AssignmentsViewProps {
+  courses: Course[];
+  assignments: Assignment[];
+  onStatusChange: (assignmentId: number, status: AssignmentStatus) => void;
+  initialCourseId: string | null;
+  onNavigated: () => void;
+  highlightedAssignmentId: number | null;
+  onHighlightDone: () => void;
+}
+
+const AssignmentsView: React.FC<AssignmentsViewProps> = ({ courses, assignments, onStatusChange, initialCourseId, onNavigated, highlightedAssignmentId, onHighlightDone }) => {
+    const [selectedCourseId, setSelectedCourseId] = useState<string>(initialCourseId || 'all');
     const [tutoringAssignment, setTutoringAssignment] = useState<Assignment | null>(null);
     const [planningAssignment, setPlanningAssignment] = useState<Assignment | null>(null);
-    const [assignmentStatuses, setAssignmentStatuses] = useState<Record<number, AssignmentStatus>>({});
+    const assignmentRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
     useEffect(() => {
-        const initialStatuses = assignments.reduce((acc, a) => {
-            acc[a.id] = a.status || 'NOT_STARTED';
-            return acc;
-        }, {} as Record<number, AssignmentStatus>);
-        setAssignmentStatuses(initialStatuses);
-    }, [assignments]);
+        // When the view is loaded with a one-time filter, apply it and then
+        // immediately notify the parent to reset it.
+        if (initialCourseId) {
+            setSelectedCourseId(initialCourseId);
+            onNavigated();
+        }
+    }, [initialCourseId, onNavigated]);
 
-    const handleStatusChange = (assignmentId: number, status: AssignmentStatus) => {
-        setAssignmentStatuses(prev => ({...prev, [assignmentId]: status}));
-    };
+    useEffect(() => {
+        if (highlightedAssignmentId) {
+            const element = assignmentRefs.current[highlightedAssignmentId];
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                element.classList.add('highlight-animation');
+                const timer = setTimeout(() => {
+                    element.classList.remove('highlight-animation');
+                    onHighlightDone();
+                }, 2500); // Duration of animation
+                return () => clearTimeout(timer);
+            } else {
+                // If element isn't rendered yet, clear highlight to prevent it from sticking
+                onHighlightDone();
+            }
+        }
+    }, [highlightedAssignmentId, onHighlightDone, assignments]); // Rerun if assignments change
+
 
     const filteredAssignments = useMemo(() => {
-        const assignmentsWithStatus = assignments.map(a => ({ ...a, status: assignmentStatuses[a.id] || a.status || 'NOT_STARTED' }));
-
-        const sorted = assignmentsWithStatus.sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime());
-
+        const sorted = [...assignments].sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime());
         if (selectedCourseId === 'all') {
             return sorted;
         }
         return sorted.filter(a => a.course_id.toString() === selectedCourseId);
-    }, [selectedCourseId, assignments, assignmentStatuses]);
+    }, [selectedCourseId, assignments]);
 
     const courseMap = useMemo(() => new Map(courses.map(c => [c.id, c])), [courses]);
 
@@ -279,6 +306,14 @@ const AssignmentsView: React.FC<{ courses: Course[]; assignments: Assignment[] }
                   20%, 80% { transform: translate3d(2px, 0, 0); }
                   30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
                   40%, 60% { transform: translate3d(4px, 0, 0); }
+                }
+                @keyframes highlight-fade {
+                    from { background-color: rgba(59, 130, 246, 0.2); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4); }
+                    to { background-color: transparent; box-shadow: 0 0 0 2px transparent; }
+                }
+                .highlight-animation {
+                    animation: highlight-fade 2.5s ease-out;
+                    border-radius: 0.5rem; /* Match card's border-radius */
                 }
                 .animate-shake {
                   animation: shake 0.6s cubic-bezier(.36,.07,.19,.97) both;
@@ -304,14 +339,18 @@ const AssignmentsView: React.FC<{ courses: Course[]; assignments: Assignment[] }
                         const course = courseMap.get(assignment.course_id);
                         if (!course) return null;
                         return (
-                           <AssignmentCard 
-                               key={assignment.id} 
-                               assignment={assignment} 
-                               course={course}
-                               onTutorClick={setTutoringAssignment} 
-                               onPlanClick={setPlanningAssignment}
-                               onStatusChange={handleStatusChange}
-                           />
+                           <div
+                                key={assignment.id}
+                                ref={(el) => (assignmentRefs.current[assignment.id] = el)}
+                           >
+                               <AssignmentCard
+                                   assignment={assignment} 
+                                   course={course}
+                                   onTutorClick={setTutoringAssignment} 
+                                   onPlanClick={setPlanningAssignment}
+                                   onStatusChange={onStatusChange}
+                               />
+                           </div>
                        )
                    })
                 ) : (

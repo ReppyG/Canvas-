@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Page } from './types';
+import { Page, Assignment } from './types';
 import { useSettings } from './hooks/useSettings';
 import { useCanvasData } from './hooks/useCanvasData';
+import { useAssignmentStatus } from './hooks/useAssignmentStatus';
 
 // Import components
 import Sidebar from './components/Sidebar';
@@ -11,8 +12,10 @@ import CoursesView from './components/CoursesView';
 import AssignmentsView from './components/AssignmentsView';
 import AiToolsView from './components/AiToolsView';
 import ChatView from './components/ChatView';
+import NotesView from './components/NotesView';
 import IntegrationsView from './components/IntegrationsView';
 import SettingsView from './components/SettingsView';
+import OnboardingView from './components/OnboardingView';
 import GlobalAiChat from './components/GlobalAiChat';
 import { SparklesIcon, Loader2Icon, ExclamationTriangleIcon } from './components/icons/Icons';
 
@@ -21,17 +24,41 @@ const App: React.FC = () => {
     
     // Enable data fetching once settings are loaded. The hook will handle which service to use (live/mock).
     const dataEnabled = settings !== null && (isConfigured || settings.sampleDataMode);
-    const { courses, assignments, calendarEvents, loading, error, connectionStatus } = useCanvasData(dataEnabled);
+    const { courses, assignments, calendarEvents, loading, error, connectionStatus, refetchData } = useCanvasData(dataEnabled);
+    const { assignmentsWithStatus, handleStatusChange } = useAssignmentStatus(assignments);
     
     const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isAiConfigured, setIsAiConfigured] = useState(true);
+    const [assignmentsCourseFilter, setAssignmentsCourseFilter] = useState<string | null>(null);
+    const [highlightedAssignmentId, setHighlightedAssignmentId] = useState<number | null>(null);
+
 
     useEffect(() => {
         if (!process.env.API_KEY) {
             setIsAiConfigured(false);
         }
     }, []);
+    
+    const handleCourseClick = (courseId: number) => {
+        setAssignmentsCourseFilter(courseId.toString());
+        setCurrentPage(Page.Assignments);
+    };
+
+    const resetAssignmentsCourseFilter = () => {
+        setAssignmentsCourseFilter(null);
+    };
+
+    const handleAssignmentSelect = (assignment: Assignment) => {
+        setAssignmentsCourseFilter(assignment.course_id.toString());
+        setHighlightedAssignmentId(assignment.id);
+        setCurrentPage(Page.Assignments);
+    };
+
+    const resetHighlightedAssignment = () => {
+        setHighlightedAssignmentId(null);
+    };
+
 
     if (settings === null) {
         return (
@@ -44,44 +71,41 @@ const App: React.FC = () => {
 
     if (!isConfigured && !settings.sampleDataMode) {
         return (
-             <div className="bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-800 dark:text-gray-200 p-4">
-                <SettingsView 
-                    settings={settings} 
-                    onSave={saveSettings} 
-                    onClear={clearSettings} 
-                    onEnableSampleDataMode={enableSampleDataMode} 
-                    initialError={error} 
-                />
-            </div>
+            <OnboardingView
+                onSave={saveSettings}
+                onEnableSampleDataMode={enableSampleDataMode}
+            />
         );
     }
     
     const renderPage = () => {
         switch (currentPage) {
             case Page.Dashboard:
-                return <Dashboard assignments={assignments} calendarEvents={calendarEvents} />;
+                return <Dashboard assignments={assignmentsWithStatus} calendarEvents={calendarEvents} onCourseClick={handleCourseClick} />;
             case Page.Courses:
-                return <CoursesView courses={courses} />;
+                return <CoursesView courses={courses} onCourseClick={handleCourseClick} />;
             case Page.Assignments:
-                return <AssignmentsView assignments={assignments} courses={courses} />;
+                return <AssignmentsView assignments={assignmentsWithStatus} courses={courses} onStatusChange={handleStatusChange} initialCourseId={assignmentsCourseFilter} onNavigated={resetAssignmentsCourseFilter} highlightedAssignmentId={highlightedAssignmentId} onHighlightDone={resetHighlightedAssignment} />;
             case Page.AiTools:
-                return <AiToolsView assignments={assignments} courses={courses} />;
+                return <AiToolsView assignments={assignmentsWithStatus} courses={courses} />;
             case Page.Chat:
-                return <ChatView courses={courses} assignments={assignments} />;
+                return <ChatView />;
+            case Page.Notes:
+                return <NotesView />;
             case Page.Integrations:
-                return <IntegrationsView connectionStatus={connectionStatus} />;
+                return <IntegrationsView connectionStatus={connectionStatus} onSync={refetchData} />;
             case Page.Settings:
-                return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} onEnableSampleDataMode={enableSampleDataMode} />;
+                return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} onEnableSampleDataMode={enableSampleDataMode} initialError={error} />;
             default:
-                return <Dashboard assignments={assignments} calendarEvents={calendarEvents} />;
+                return <Dashboard assignments={assignmentsWithStatus} calendarEvents={calendarEvents} onCourseClick={handleCourseClick} />;
         }
     };
 
     return (
         <div className="flex h-screen bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 font-sans">
-            <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+            <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} settings={settings} />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <Header assignments={assignments} connectionStatus={connectionStatus} />
+                <Header assignments={assignmentsWithStatus} courses={courses} connectionStatus={connectionStatus} onAssignmentSelect={handleAssignmentSelect} />
                 {!isAiConfigured && (
                     <div className="bg-yellow-100 text-yellow-800 text-center text-sm py-2 px-4 flex items-center justify-center dark:bg-yellow-900/50 dark:text-yellow-200 flex-shrink-0">
                         <ExclamationTriangleIcon className="w-5 h-5 inline-block mr-2 flex-shrink-0" />
@@ -112,7 +136,7 @@ const App: React.FC = () => {
                 isOpen={isChatOpen}
                 onClose={() => setIsChatOpen(false)}
                 courses={courses}
-                assignments={assignments}
+                assignments={assignmentsWithStatus}
             />
         </div>
     );

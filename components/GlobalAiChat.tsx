@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { AiTutorMessage, Course, Assignment } from '../types';
 import { createGlobalAssistantChat, generateGroundedText } from '../services/geminiService';
 import { Chat } from '@google/genai';
-import { SparklesIcon, XIcon, GlobeIcon, ExternalLinkIcon } from './icons/Icons';
+import { SparklesIcon, XIcon, GlobeIcon, ExternalLinkIcon, MapIcon } from './icons/Icons';
 
 interface GlobalAiChatProps {
     isOpen: boolean;
@@ -106,7 +106,7 @@ const GlobalAiChat: React.FC<GlobalAiChatProps> = ({ isOpen, onClose, courses, a
                                         {msg.sources.map((source, i) => (
                                             <a href={source.uri} target="_blank" rel="noopener noreferrer" key={i} title={source.uri}
                                                 className="flex items-center gap-1.5 text-xs bg-gray-100 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-md transition-colors">
-                                                <ExternalLinkIcon className="w-3 h-3 flex-shrink-0" />
+                                                {source.type === 'map' ? <MapIcon className="w-3 h-3 flex-shrink-0" /> : <ExternalLinkIcon className="w-3 h-3 flex-shrink-0" />}
                                                 <span className="truncate max-w-40">{source.title || new URL(source.uri).hostname}</span>
                                             </a>
                                         ))}
@@ -138,7 +138,7 @@ const GlobalAiChat: React.FC<GlobalAiChatProps> = ({ isOpen, onClose, courses, a
                     {inputError && <p className="text-red-500 text-xs ml-1">{inputError}</p>}
                     <div className="flex-grow"></div>
                     <label htmlFor="global-grounding-toggle" className="flex items-center gap-2 cursor-pointer select-none">
-                        <span className={`text-xs font-medium ${enableGrounding ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>Search Web</span>
+                        <span className={`text-xs font-medium ${enableGrounding ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>Search Web & Maps</span>
                         <div className="relative">
                             <input id="global-grounding-toggle" type="checkbox" className="sr-only" checked={enableGrounding} onChange={e => setEnableGrounding(e.target.checked)} />
                             <div className={`block w-10 h-5 rounded-full transition-colors ${enableGrounding ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>

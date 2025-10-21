@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Chat, LiveServerMessage, Modality, Blob } from "@google/genai";
+import { GoogleGenAI, Type, Chat, LiveServerMessage, Modality, Blob, Operation } from "@google/genai";
 import { Assignment, StudyPlan, Summary, ChatMessage, AiTutorMessage, GroundingSource } from "../types";
 
 let ai: GoogleGenAI | null = null;
@@ -7,15 +7,23 @@ const summaryModel = "gemini-2.5-pro";
 const videoModel = "gemini-2.5-pro";
 const chatModel = "gemini-2.5-flash";
 const fastModel = "gemini-flash-lite-latest";
+const imageGenModel = 'imagen-4.0-generate-001';
+const videoGenModel = 'veo-3.1-fast-generate-preview';
+const imageEditModel = 'gemini-2.5-flash-image';
+const ttsModel = 'gemini-2.5-flash-preview-tts';
+const liveModel = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
-
-function getClient(): GoogleGenAI {
-    if (ai) return ai;
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
+function getClient(apiKey?: string): GoogleGenAI {
+    const key = apiKey || process.env.API_KEY;
+    if (!key) {
         throw new Error("Gemini API key is not configured. Please set the API_KEY environment variable.");
     }
-    ai = new GoogleGenAI({ apiKey });
+    // For features requiring user-selected keys (like Veo), we create a new instance.
+    if (apiKey) {
+        return new GoogleGenAI({ apiKey: key });
+    }
+    if (ai) return ai;
+    ai = new GoogleGenAI({ apiKey: key });
     return ai;
 }
 
@@ -32,6 +40,9 @@ const handleApiError = (error: unknown) : never => {
         if (error.message.includes('RESOURCE_EXHAUSTED')) {
             throw new Error(`[AI Error] You have exceeded the API request limit. Please wait a moment before trying again.`);
         }
+        if (error.message.includes('Requested entity was not found')) {
+            throw new Error(`[AI Error] The API key is invalid or not properly selected for this project. Please select a valid key.`);
+        }
         throw new Error(`[AI Error] An unexpected error occurred: ${error.message}`);
     }
     throw new Error("[AI Error] An unknown error occurred while communicating with the AI.");
@@ -40,6 +51,54 @@ const handleApiError = (error: unknown) : never => {
 interface GenerationOptions {
     enableThinking?: boolean;
 }
+
+// --- Audio Decoding Helpers (for TTS & Live API) ---
+function decode(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
+
+export const playAudio = async (base64Audio: string) => {
+    // Standard sample rate for TTS model
+    const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+    const outputNode = outputAudioContext.createGain();
+    outputNode.connect(outputAudioContext.destination);
+
+    const audioBuffer = await decodeAudioData(
+        decode(base64Audio),
+        outputAudioContext,
+        24000,
+        1,
+    );
+    const source = outputAudioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(outputNode);
+    source.start();
+};
 
 export const generateStudyPlan = async (assignment: Assignment, options?: GenerationOptions): Promise<StudyPlan> => {
     const client = getClient();
@@ -286,7 +345,7 @@ export const generateGroundedText = async (fullPrompt: string): Promise<{ text: 
             model: "gemini-2.5-flash",
             contents: fullPrompt,
             config: {
-                tools: [{ googleSearch: {} }],
+                tools: [{ googleSearch: {} }, { googleMaps: {} }],
             },
         });
 
@@ -294,10 +353,11 @@ export const generateGroundedText = async (fullPrompt: string): Promise<{ text: 
         const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
         
         const sources: GroundingSource[] = groundingChunks
-            .map((chunk: any) => (chunk.web ? {
-                uri: chunk.web.uri || '',
-                title: chunk.web.title || 'Untitled Source',
-            } : null))
+            .map((chunk: any) => {
+                if (chunk.web) return { type: 'web' as const, uri: chunk.web.uri || '', title: chunk.web.title || 'Untitled Source' };
+                if (chunk.maps) return { type: 'map' as const, uri: chunk.maps.uri || '', title: chunk.maps.title || 'Untitled Place' };
+                return null;
+            })
             .filter((source): source is GroundingSource => source !== null && !!source.uri);
 
         const uniqueSources = Array.from(new Map(sources.map(s => [s.uri, s])).values());
@@ -307,7 +367,6 @@ export const generateGroundedText = async (fullPrompt: string): Promise<{ text: 
         handleApiError(error);
     }
 };
-
 
 export const analyzeImage = async (base64Data: string, mimeType: string, prompt: string): Promise<string> => {
     const client = getClient();
@@ -353,8 +412,104 @@ export const analyzeVideo = async (base64Data: string, mimeType: string, prompt:
     }
 };
 
-// --- Live Transcription Service ---
+// --- Image Generation Service ---
+export const generateImage = async (prompt: string, aspectRatio: string): Promise<string> => {
+    const client = getClient();
+    try {
+        const response = await client.models.generateImages({
+            model: imageGenModel,
+            prompt: prompt,
+            config: {
+                numberOfImages: 1,
+                outputMimeType: 'image/jpeg',
+                aspectRatio: aspectRatio as any,
+            },
+        });
+        return response.generatedImages[0].image.imageBytes;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
 
+// --- Image Editing Service ---
+export const editImage = async (base64Data: string, mimeType: string, prompt: string): Promise<string> => {
+    const client = getClient();
+    try {
+        const response = await client.models.generateContent({
+            model: imageEditModel,
+            contents: {
+                parts: [
+                    { inlineData: { data: base64Data, mimeType: mimeType } },
+                    { text: prompt },
+                ],
+            },
+            config: { responseModalities: [Modality.IMAGE] },
+        });
+        const part = response.candidates?.[0]?.content?.parts?.[0];
+        if (part?.inlineData) {
+            return part.inlineData.data;
+        }
+        throw new Error("AI did not return an edited image.");
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// --- Video Generation Service ---
+export const generateVideo = async (prompt: string, aspectRatio: '16:9' | '9:16', image?: { data: string, mimeType: string }): Promise<Operation> => {
+    const client = getClient(process.env.API_KEY); // Must create new client for fresh key
+    try {
+        const operation = await client.models.generateVideos({
+            model: videoGenModel,
+            prompt: prompt,
+            ...(image && { image: { imageBytes: image.data, mimeType: image.mimeType } }),
+            config: {
+                numberOfVideos: 1,
+                resolution: '720p',
+                aspectRatio: aspectRatio,
+            }
+        });
+        return operation;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+export const getVideosOperation = async (operation: Operation): Promise<Operation> => {
+    const client = getClient(process.env.API_KEY); // Must create new client for fresh key
+    try {
+        const updatedOperation = await client.operations.getVideosOperation({ operation });
+        return updatedOperation;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// --- TTS Service ---
+export const generateSpeech = async (text: string): Promise<string> => {
+    const client = getClient();
+    try {
+        const response = await client.models.generateContent({
+            model: ttsModel,
+            contents: [{ parts: [{ text: text }] }],
+            config: {
+                responseModalities: [Modality.AUDIO],
+                speechConfig: {
+                    voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+                },
+            },
+        });
+        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if (!base64Audio) {
+            throw new Error("AI did not return any audio data.");
+        }
+        return base64Audio;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// --- Live Transcription Service ---
 function encode(bytes: Uint8Array) {
   let binary = '';
   const len = bytes.byteLength;
@@ -386,13 +541,12 @@ export const startTranscriptionSession = async (
     const client = getClient();
     try {
         const sessionPromise = client.live.connect({
-            model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+            model: liveModel,
             callbacks: {
                 onopen: () => {
                     console.log('Live session opened for transcription.');
                 },
                 onmessage: (message: LiveServerMessage) => {
-                    // We only care about the input transcription, ignore any audio output
                     if (message.serverContent?.inputTranscription) {
                         const text = message.serverContent.inputTranscription.text;
                         const isFinal = message.serverContent.turnComplete ?? false;
@@ -409,8 +563,57 @@ export const startTranscriptionSession = async (
                 },
             },
             config: {
-                responseModalities: [Modality.AUDIO], // Required by the API
+                responseModalities: [Modality.AUDIO],
                 inputAudioTranscription: {},
+            },
+        });
+        return sessionPromise;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+// --- Live Conversation Service ---
+export const startLiveConversation = async (
+    callbacks: {
+        onAudio: (audioB64: string) => void,
+        onTranscription: (text: string, isFinal: boolean) => void,
+        onError: (error: Error) => void,
+        onClose: () => void
+    }
+) => {
+    const client = getClient();
+    try {
+        const sessionPromise = client.live.connect({
+            model: liveModel,
+            callbacks: {
+                onopen: () => console.log('Live session opened for conversation.'),
+                onmessage: (message: LiveServerMessage) => {
+                    const audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+                    if (audio) {
+                        callbacks.onAudio(audio);
+                    }
+                    if (message.serverContent?.inputTranscription) {
+                        const text = message.serverContent.inputTranscription.text;
+                        const isFinal = message.serverContent.turnComplete ?? false;
+                        callbacks.onTranscription(text, isFinal);
+                    }
+                },
+                onerror: (e: ErrorEvent) => {
+                    console.error('Live session error:', e);
+                    callbacks.onError(new Error(e.message || "An unknown live session error occurred."));
+                },
+                onclose: (e: CloseEvent) => {
+                    console.log('Live session closed.');
+                    callbacks.onClose();
+                },
+            },
+            config: {
+                responseModalities: [Modality.AUDIO],
+                inputAudioTranscription: {},
+                speechConfig: {
+                    voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
+                },
             },
         });
         return sessionPromise;

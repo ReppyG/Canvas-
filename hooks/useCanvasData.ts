@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Course, Assignment, CalendarEvent, Settings } from '../types';
 import * as apiService from '../services/canvasApiService';
 import * as mockService from '../services/canvasMockService';
@@ -26,6 +26,69 @@ export const useCanvasData = (enabled: boolean) => {
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'live' | 'sample' | 'error'>('live');
 
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      setError(null);
+      setNewAssignments([]);
+      
+      const settings = await storage.get<Settings>(SETTINGS_KEY);
+      
+      const useSampleData = settings?.sampleDataMode ?? false;
+      
+      setConnectionStatus(useSampleData ? 'sample' : 'live');
+
+      if (!useSampleData && (!settings || !settings.canvasUrl || !settings.apiToken)) {
+          setError("Canvas settings not configured.");
+          setConnectionStatus('error');
+          setLoading(false);
+          return;
+      }
+
+      const coursesData = useSampleData ? await (mockService as MockCanvasService).getCourses() : await (apiService as CanvasService).getCourses(settings!);
+      const assignmentsData = useSampleData ? await (mockService as MockCanvasService).getAssignments() : await (apiService as CanvasService).getAssignments(settings!);
+      
+      if (!useSampleData && settings) {
+          const newAssignmentIds = new Set(assignmentsData.map(a => a.id));
+          const storedIdsRaw = await storage.get<number[]>(CANVAS_ASSIGNMENT_IDS_KEY);
+          
+          if (storedIdsRaw) {
+              const storedIds = new Set(storedIdsRaw);
+              const newlyAdded = assignmentsData.filter(a => !storedIds.has(a.id));
+              if (newlyAdded.length > 0) {
+                  setNewAssignments(newlyAdded);
+              }
+          }
+          if (assignmentsData.length > 0) {
+             await storage.set(CANVAS_ASSIGNMENT_IDS_KEY, Array.from(newAssignmentIds));
+          }
+      }
+      
+      const courseMap = new Map(coursesData.map(c => [c.id, c.name]));
+      const eventsData: CalendarEvent[] = assignmentsData
+        .filter(a => a.due_at)
+        .map(a => ({
+        id: a.id,
+        title: a.name,
+        date: new Date(a.due_at!),
+        type: a.name.toLowerCase().includes('quiz') ? 'quiz' : a.name.toLowerCase().includes('test') || a.name.toLowerCase().includes('exam') ? 'test' : 'assignment',
+        course_id: a.course_id,
+        courseName: courseMap.get(a.course_id) || 'Unknown Course',
+      }));
+
+      setCourses(coursesData);
+      setAssignments(assignmentsData);
+      setCalendarEvents(eventsData);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+      console.error("Critical error fetching canvas data:", err);
+      setError(errorMessage);
+      setConnectionStatus('error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!enabled) {
       setLoading(false);
@@ -36,70 +99,9 @@ export const useCanvasData = (enabled: boolean) => {
       setError(null);
       return;
     }
-
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        setError(null);
-        setNewAssignments([]);
-        
-        const settings = await storage.get<Settings>(SETTINGS_KEY);
-        
-        const useSampleData = settings?.sampleDataMode ?? false;
-        
-        setConnectionStatus(useSampleData ? 'sample' : 'live');
-
-        if (!useSampleData && (!settings || !settings.canvasUrl || !settings.apiToken)) {
-            setError("Canvas settings not configured.");
-            setConnectionStatus('error');
-            setLoading(false);
-            return;
-        }
-
-        const coursesData = useSampleData ? await (mockService as MockCanvasService).getCourses() : await (apiService as CanvasService).getCourses(settings!);
-        const assignmentsData = useSampleData ? await (mockService as MockCanvasService).getAssignments() : await (apiService as CanvasService).getAssignments(settings!);
-        
-        if (!useSampleData && settings) {
-            const newAssignmentIds = new Set(assignmentsData.map(a => a.id));
-            const storedIdsRaw = await storage.get<number[]>(CANVAS_ASSIGNMENT_IDS_KEY);
-            
-            if (storedIdsRaw) {
-                const storedIds = new Set(storedIdsRaw);
-                const newlyAdded = assignmentsData.filter(a => !storedIds.has(a.id));
-                if (newlyAdded.length > 0) {
-                    setNewAssignments(newlyAdded);
-                }
-            }
-            if (assignmentsData.length > 0) {
-               await storage.set(CANVAS_ASSIGNMENT_IDS_KEY, Array.from(newAssignmentIds));
-            }
-        }
-        
-        const eventsData: CalendarEvent[] = assignmentsData
-          .filter(a => a.due_at)
-          .map(a => ({
-          id: a.id,
-          title: a.name,
-          date: new Date(a.due_at!),
-          type: a.name.toLowerCase().includes('quiz') ? 'quiz' : a.name.toLowerCase().includes('test') || a.name.toLowerCase().includes('exam') ? 'test' : 'assignment',
-          course_id: a.course_id,
-        }));
-
-        setCourses(coursesData);
-        setAssignments(assignmentsData);
-        setCalendarEvents(eventsData);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-        console.error("Critical error fetching canvas data:", err);
-        setError(errorMessage);
-        setConnectionStatus('error');
-      } finally {
-        setLoading(false);
-      }
-    };
     
     fetchData();
-  }, [enabled]);
+  }, [enabled, fetchData]);
 
-  return { courses, assignments, calendarEvents, loading, error, newAssignments, connectionStatus };
+  return { courses, assignments, calendarEvents, loading, error, newAssignments, connectionStatus, refetchData: fetchData };
 };
