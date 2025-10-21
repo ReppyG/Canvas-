@@ -1,73 +1,57 @@
-import { ApiService } from './apiService';
+import React from 'react';
+import { Assignment } from '../types';
+import { format } from 'date-fns';
+import { AlertCircleIcon, CheckCircle2Icon, CircleIcon } from './icons/Icons';
 
-/**
- * Header component for displaying date/time and user info
- */
-export class HeaderComponent {
-  private element: HTMLElement;
-  private apiService: ApiService;
-  private timeInterval: number | null = null;
-  
-  /**
-   * Initialize the header component
-   * @param elementId DOM element ID for the header
-   * @param apiService API service instance
-   */
-  constructor(elementId: string, apiService: ApiService) {
-    this.element = document.getElementById(elementId) || document.createElement('div');
-    if (!document.getElementById(elementId)) {
-      this.element.id = elementId;
-      document.body.prepend(this.element);
-    }
-    this.apiService = apiService;
-  }
-  
-  /**
-   * Start the header component with timer
-   */
-  start(): void {
-    this.render();
-    
-    // Update time every second
-    this.timeInterval = window.setInterval(() => {
-      this.updateDateTime();
-    }, 1000);
-  }
-  
-  /**
-   * Stop the timer
-   */
-  stop(): void {
-    if (this.timeInterval !== null) {
-      clearInterval(this.timeInterval);
-      this.timeInterval = null;
-    }
-  }
-  
-  /**
-   * Render the header component
-   */
-  render(): void {
-    this.element.innerHTML = `
-      <div class="canvas-header">
-        <div class="datetime-display">
-          Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): 
-          <span id="current-datetime">${this.apiService.getCurrentDateTime()}</span>
-        </div>
-        <div class="user-info">
-          Current User's Login: <span id="current-user-login">${this.apiService.getUserLogin()}</span>
-        </div>
-      </div>
-    `;
-  }
-  
-  /**
-   * Update just the date/time part
-   */
-  updateDateTime(): void {
-    const datetimeElement = this.element.querySelector('#current-datetime');
-    if (datetimeElement) {
-      datetimeElement.textContent = this.apiService.getCurrentDateTime();
-    }
-  }
+interface HeaderProps {
+    assignments: Assignment[];
+    connectionStatus: 'live' | 'sample';
 }
+
+const Header: React.FC<HeaderProps> = ({ assignments, connectionStatus }) => {
+    const upcomingAssignments = assignments
+        .filter(a => a.due_at && new Date(a.due_at) > new Date())
+        .sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime())
+        .slice(0, 3);
+
+    const now = new Date();
+    const dateTimeStr = format(now, 'yyyy-MM-dd HH:mm:ss');
+
+    return (
+        <header className="bg-gray-800 shadow-md p-4 flex items-center justify-between border-b border-gray-700">
+            <div className="flex items-center space-x-4">
+                <h1 className="text-xl font-bold">Canvas AI Assistant</h1>
+                <div className="text-sm text-gray-400">
+                    {dateTimeStr}
+                </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+                {upcomingAssignments.length > 0 && (
+                    <div className="flex items-center space-x-2 text-sm">
+                        <AlertCircleIcon className="w-5 h-5 text-yellow-500" />
+                        <span className="text-gray-300">
+                            {upcomingAssignments.length} upcoming
+                        </span>
+                    </div>
+                )}
+                
+                <div className="flex items-center space-x-2">
+                    {connectionStatus === 'live' ? (
+                        <>
+                            <CheckCircle2Icon className="w-5 h-5 text-green-500" />
+                            <span className="text-sm text-gray-300">Live</span>
+                        </>
+                    ) : (
+                        <>
+                            <CircleIcon className="w-5 h-5 text-gray-500" />
+                            <span className="text-sm text-gray-300">Sample Data</span>
+                        </>
+                    )}
+                </div>
+            </div>
+        </header>
+    );
+};
+
+export default Header;
