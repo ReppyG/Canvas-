@@ -1,73 +1,61 @@
-import { ApiService } from './apiService';
+import React, { useState, useEffect } from 'react';
+import { Assignment } from '../types';
+import { AlertCircleIcon } from './icons/Icons';
 
-/**
- * Header component for displaying date/time and user info
- */
-export class HeaderComponent {
-  private element: HTMLElement;
-  private apiService: ApiService;
-  private timeInterval: number | null = null;
-  
-  /**
-   * Initialize the header component
-   * @param elementId DOM element ID for the header
-   * @param apiService API service instance
-   */
-  constructor(elementId: string, apiService: ApiService) {
-    this.element = document.getElementById(elementId) || document.createElement('div');
-    if (!document.getElementById(elementId)) {
-      this.element.id = elementId;
-      document.body.prepend(this.element);
-    }
-    this.apiService = apiService;
-  }
-  
-  /**
-   * Start the header component with timer
-   */
-  start(): void {
-    this.render();
-    
-    // Update time every second
-    this.timeInterval = window.setInterval(() => {
-      this.updateDateTime();
-    }, 1000);
-  }
-  
-  /**
-   * Stop the timer
-   */
-  stop(): void {
-    if (this.timeInterval !== null) {
-      clearInterval(this.timeInterval);
-      this.timeInterval = null;
-    }
-  }
-  
-  /**
-   * Render the header component
-   */
-  render(): void {
-    this.element.innerHTML = `
-      <div class="canvas-header">
-        <div class="datetime-display">
-          Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): 
-          <span id="current-datetime">${this.apiService.getCurrentDateTime()}</span>
-        </div>
-        <div class="user-info">
-          Current User's Login: <span id="current-user-login">${this.apiService.getUserLogin()}</span>
-        </div>
-      </div>
-    `;
-  }
-  
-  /**
-   * Update just the date/time part
-   */
-  updateDateTime(): void {
-    const datetimeElement = this.element.querySelector('#current-datetime');
-    if (datetimeElement) {
-      datetimeElement.textContent = this.apiService.getCurrentDateTime();
-    }
-  }
+interface HeaderProps {
+    assignments: Assignment[];
+    connectionStatus: 'live' | 'sample' | 'none';
 }
+
+const Header: React.FC<HeaderProps> = ({ assignments, connectionStatus }) => {
+    const [currentTime, setCurrentTime] = useState(new Date());
+    
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+        
+        return () => clearInterval(timer);
+    }, []);
+    
+    const upcomingCount = assignments.filter(a => {
+        if (!a.due_at) return false;
+        const daysUntilDue = Math.ceil((new Date(a.due_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        return daysUntilDue >= 0 && daysUntilDue <= 7;
+    }).length;
+    
+    return (
+        <header className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+                <h1 className="text-xl font-bold text-white">Canvas AI Assistant</h1>
+                {connectionStatus === 'sample' && (
+                    <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-1 rounded border border-yellow-700">
+                        Sample Data Mode
+                    </span>
+                )}
+                {connectionStatus === 'live' && (
+                    <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded border border-green-700">
+                        ● Connected
+                    </span>
+                )}
+            </div>
+            
+            <div className="flex items-center space-x-6">
+                <div className="text-sm text-gray-400">
+                    {currentTime.toLocaleString()}
+                </div>
+                
+                {upcomingCount > 0 && (
+                    <div className="flex items-center space-x-2 text-sm">
+                        <AlertCircleIcon className="w-5 h-5 text-yellow-400" />
+                        <span className="text-gray-300">
+                            {upcomingCount} upcoming assignment{upcomingCount !== 1 ? 's' : ''}
+                        </span>
+                    </div>
+                )}
+            </div>
+        </header>
+    );
+};
+
+export default Header;

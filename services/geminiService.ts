@@ -11,17 +11,8 @@ const tutorModel = "gemini-2.5-flash";
 function getClient(): GoogleGenAI {
     if (ai) return ai;
     // Fix: Use process.env.API_KEY as per guidelines and to fix build error.
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-```
-4. **Save** the file
-
-## Step 3: Create Your Environment File
-
-1. **Create a new file** in your project root (same folder as `package.json`) called `.env`
-2. **Add this line** to the file:
-```
-   VITE_GEMINI_API_KEY=AIzaSyBnPWon7WycBczqsbskqotIlcIJCHzM8i0
-       if (!apiKey) {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
         throw new Error("Gemini API key is not configured. Please set the API_KEY environment variable.");
     }
     ai = new GoogleGenAI({ apiKey });
