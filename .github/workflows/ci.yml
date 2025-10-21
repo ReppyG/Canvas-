@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure env vars set
+        run: |
+          if [ -z "${{ secrets.GEMINI_API_KEY }}" ]; then
+            echo "WARNING: GEMINI_API_KEY not set in repo secrets. Some steps may fail."
+          fi
+
+      - name: Show npm scripts
+        run: npm run || true
+
+      - name: Typecheck
+        run: |
+          if npm run | grep -q "typecheck"; then npm run typecheck; else echo "typecheck not defined"; fi
+
+      - name: Lint
+        run: |
+          if npm run | grep -q "lint"; then npm run lint; else echo "lint not defined"; fi
+
+      - name: Build
+        run: npm run build || (echo "build failed"; exit 1)
+
+      - name: Run tests
+        run: |
+          if npm run | grep -q "test"; then npm test --silent || (echo "tests failed"; exit 1); else echo "no tests defined"; fi
