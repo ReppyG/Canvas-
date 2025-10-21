@@ -1,10 +1,13 @@
 import { GoogleGenAI, Type, Chat, LiveServerMessage, Modality, Blob } from "@google/genai";
-import { Assignment, StudyPlan, Summary, ChatMessage } from "../types";
+import { Assignment, StudyPlan, Summary, ChatMessage, AiTutorMessage, GroundingSource } from "../types";
 
 let ai: GoogleGenAI | null = null;
 const studyPlanModel = "gemini-2.5-pro";
 const summaryModel = "gemini-2.5-pro";
-const tutorModel = "gemini-flash-lite-latest";
+const videoModel = "gemini-2.5-pro";
+const chatModel = "gemini-2.5-flash";
+const fastModel = "gemini-flash-lite-latest";
+
 
 function getClient(): GoogleGenAI {
     if (ai) return ai;
@@ -158,7 +161,7 @@ Output ONLY a valid JSON object matching the provided schema.`;
 export const getTutorResponse = async (history: ChatMessage[], newMessage: string): Promise<string> => {
     const client = getClient();
     const chat = client.chats.create({
-        model: tutorModel,
+        model: chatModel,
         config: {
             systemInstruction: `You are a patient, knowledgeable tutor helping a student. Use the Socratic method when appropriate, encourage critical thinking, and never give direct answers to homework. Be supportive and encouraging.`
         },
@@ -180,7 +183,7 @@ export const generateText = async (prompt: string): Promise<string> => {
     const client = getClient();
     try {
         const response = await client.models.generateContent({
-            model: 'gemini-flash-lite-latest',
+            model: fastModel,
             contents: prompt,
         });
         return response.text;
@@ -238,7 +241,7 @@ export const estimateAssignmentTime = async (assignment: Assignment): Promise<st
 
     try {
         const response = await client.models.generateContent({
-            model: tutorModel,
+            model: fastModel,
             contents: prompt,
         });
         return response.text.trim();
@@ -250,7 +253,7 @@ export const estimateAssignmentTime = async (assignment: Assignment): Promise<st
 export const createTutorChat = (assignment: Assignment): Chat => {
     const client = getClient();
     const chat = client.chats.create({
-        model: tutorModel,
+        model: chatModel,
         config: {
             systemInstruction: `You are a patient, knowledgeable tutor helping a student with a specific assignment.
             Assignment: ${assignment.name}
@@ -264,13 +267,43 @@ export const createTutorChat = (assignment: Assignment): Chat => {
 export const createGlobalAssistantChat = (context: string): Chat => {
     const client = getClient();
     const chat = client.chats.create({
-        model: tutorModel,
+        model: chatModel,
         config: {
             systemInstruction: `You are a helpful AI assistant for a student. You have access to their course and assignment data to answer questions. Be concise and helpful. Here is the student's data: ${context}`
         },
     });
     return chat;
 };
+
+export const generateGroundedText = async (fullPrompt: string): Promise<{ text: string, sources: GroundingSource[] }> => {
+    const client = getClient();
+    try {
+        const response = await client.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: fullPrompt,
+            config: {
+                tools: [{ googleSearch: {} }],
+            },
+        });
+
+        const text = response.text;
+        const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        
+        const sources: GroundingSource[] = groundingChunks
+            .map((chunk: any) => (chunk.web ? {
+                uri: chunk.web.uri || '',
+                title: chunk.web.title || 'Untitled Source',
+            } : null))
+            .filter((source): source is GroundingSource => source !== null && !!source.uri);
+
+        const uniqueSources = Array.from(new Map(sources.map(s => [s.uri, s])).values());
+
+        return { text, sources: uniqueSources };
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
 
 export const analyzeImage = async (base64Data: string, mimeType: string, prompt: string): Promise<string> => {
     const client = getClient();
@@ -287,6 +320,28 @@ export const analyzeImage = async (base64Data: string, mimeType: string, prompt:
         const response = await client.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: { parts: [imagePart, textPart] },
+        });
+        return response.text;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+export const analyzeVideo = async (base64Data: string, mimeType: string, prompt: string): Promise<string> => {
+    const client = getClient();
+    try {
+        const videoPart = {
+            inlineData: {
+                mimeType: mimeType,
+                data: base64Data,
+            },
+        };
+        const textPart = {
+            text: prompt
+        };
+        const response = await client.models.generateContent({
+            model: videoModel,
+            contents: { parts: [videoPart, textPart] },
         });
         return response.text;
     } catch (error) {

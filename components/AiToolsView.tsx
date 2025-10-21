@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Assignment, Course } from '../types';
-import { SparklesIcon, DocumentTextIcon, BrainIcon, ImageIcon, MicIcon } from './icons/Icons';
+import { SparklesIcon, DocumentTextIcon, BrainIcon, ImageIcon, MicIcon, VideoIcon } from './icons/Icons';
 import { generateNotesFromText, summarizeDocument } from '../services/geminiService';
 import ImageAnalyzerModal from './ImageAnalyzerModal';
 import AudioTranscriberModal from './AudioTranscriberModal';
+import VideoAnalyzerModal from './VideoAnalyzerModal';
 
 type AiFeature = 'summarizer' | 'studyGuide';
 
@@ -139,6 +140,7 @@ const AiToolsView: React.FC<{ assignments: Assignment[]; courses: Course[] }> = 
   const [activeTextModal, setActiveTextModal] = useState<AiFeature | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   return (
     <div className="animate-fade-in">
@@ -165,6 +167,12 @@ const AiToolsView: React.FC<{ assignments: Assignment[]; courses: Course[] }> = 
           onClick={() => setIsImageModalOpen(true)}
         />
         <FeatureCard
+          icon={<VideoIcon className="w-6 h-6 text-orange-500" />}
+          title="Video Analyzer"
+          description="Upload a video and get insights from its content."
+          onClick={() => setIsVideoModalOpen(true)}
+        />
+        <FeatureCard
           icon={<MicIcon className="w-6 h-6 text-red-500" />}
           title="Audio Transcriber"
           description="Record your voice and get a live transcription."
@@ -181,6 +189,7 @@ const AiToolsView: React.FC<{ assignments: Assignment[]; courses: Course[] }> = 
       {activeTextModal && <TextAiModal feature={activeTextModal} onClose={() => setActiveTextModal(null)} />}
       {isImageModalOpen && <ImageAnalyzerModal onClose={() => setIsImageModalOpen(false)} />}
       {isAudioModalOpen && <AudioTranscriberModal onClose={() => setIsAudioModalOpen(false)} />}
+      {isVideoModalOpen && <VideoAnalyzerModal onClose={() => setIsVideoModalOpen(false)} />}
     </div>
   );
 };

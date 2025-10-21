@@ -79,9 +79,15 @@ export interface ChatMessage {
     content: string;
 }
 
+export interface GroundingSource {
+    uri: string;
+    title: string;
+}
+
 export interface AiTutorMessage {
     role: 'user' | 'model';
     text: string;
+    sources?: GroundingSource[];
 }
 
 // App related types
