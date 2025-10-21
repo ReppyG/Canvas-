@@ -65,7 +65,7 @@ const TextAiModal: React.FC<{
 
         try {
             const apiResult = await config.action(inputText);
-            setResult(apiResult);
+            setResult(apiResult || 'No result returned');
         } catch (e: any) {
             setError(e.message || 'An unexpected client error occurred.');
             console.error(e);

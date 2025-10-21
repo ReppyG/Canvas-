@@ -15,11 +15,17 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["chrome"]
+    "types": ["vite/client"]
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx"
+    "main.tsx",
+    "App.tsx",
+    "types.ts",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "hooks/**/*.ts",
+    "services/**/*.ts",
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules",
@@ -28,6 +34,10 @@
     "server.ts",
     "api",
     "netlify",
-    "tsconfig.server.json"
+    "tsconfig.server.json",
+    "background.ts",
+    "content.ts",
+    "index.tsx",
+    "canvasApp.ts"
   ]
 }

@@ -59,7 +59,7 @@ const NotesView: React.FC = () => {
       }
       const result = await generateNotesFromText(content);
       // The service now throws, so we catch it below. The result is always a string on success.
-      setNotes(result);
+      setNotes(result || 'No notes generated');
     } catch (e: any) {
       console.error(e);
       setError(e.message || 'An unexpected client-side error occurred. Please check the console.');

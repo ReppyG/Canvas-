@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 
 interface HeaderProps {
   assignments: Assignment[];
-  connectionStatus: 'live' | 'mock' | 'connecting';
+  connectionStatus: 'live' | 'sample' | 'error' | 'connecting';
 }
 
 const Header: React.FC<HeaderProps> = ({ assignments, connectionStatus }) => {
@@ -34,8 +34,10 @@ const Header: React.FC<HeaderProps> = ({ assignments, connectionStatus }) => {
     switch (connectionStatus) {
       case 'live':
         return 'text-green-400';
-      case 'mock':
+      case 'sample':
         return 'text-yellow-400';
+      case 'error':
+        return 'text-red-400';
       case 'connecting':
         return 'text-blue-400';
       default:
@@ -49,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({ assignments, connectionStatus }) => {
         <div className="flex items-center space-x-4">
           <h1 className="text-xl font-bold text-white">Canvas AI Assistant</h1>
           <span className={`text-sm ${getConnectionStatusColor()}`}>
-            {connectionStatus === 'live' ? '● Live' : connectionStatus === 'mock' ? '● Demo Mode' : '● Connecting...'}
+            {connectionStatus === 'live' ? '● Live' : connectionStatus === 'sample' ? '● Demo Mode' : connectionStatus === 'error' ? '● Error' : '● Connecting...'}
           </span>
         </div>
         <div className="flex items-center space-x-6">

@@ -89,10 +89,14 @@ Create a JSON study plan. Make it practical, actionable, and tailored to the tim
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: schema }
         });
+        if (!response.text) {
+            throw new Error("No response text received from AI");
+        }
         return JSON.parse(response.text) as StudyPlan;
     } catch(error) {
         handleApiError(error);
     }
+    return null; // TypeScript needs this even though handleApiError always throws
 };
 
 export const generateSummary = async (content: string): Promise<Summary | null> => {
@@ -139,14 +143,18 @@ Output ONLY a valid JSON object matching the provided schema.`;
             contents: prompt,
             config: { responseMimeType: "application/json", responseSchema: schema }
         });
+        if (!response.text) {
+            throw new Error("No response text received from AI");
+        }
         return JSON.parse(response.text) as Summary;
     } catch(error) {
         handleApiError(error);
     }
+    return null; // TypeScript needs this even though handleApiError always throws
 };
 
 
-export const getTutorResponse = async (history: ChatMessage[], newMessage: string): Promise<string> => {
+export const getTutorResponse = async (history: ChatMessage[], newMessage: string): Promise<string | null> => {
     const client = getClient();
     const chat = client.chats.create({
         model: tutorModel,
@@ -161,28 +169,36 @@ export const getTutorResponse = async (history: ChatMessage[], newMessage: strin
 
     try {
         const response = await chat.sendMessage({ message: newMessage });
+        if (!response.text) {
+            throw new Error("No response text received from AI");
+        }
         return response.text;
     } catch (error) {
         handleApiError(error);
     }
+    return null;
 };
 
 // Fix: Add missing generateText function
-export const generateText = async (prompt: string): Promise<string> => {
+export const generateText = async (prompt: string): Promise<string | null> => {
     const client = getClient();
     try {
         const response = await client.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
         });
+        if (!response.text) {
+            throw new Error("No response text received from AI");
+        }
         return response.text;
     } catch (error) {
         handleApiError(error);
     }
+    return null;
 };
 
 // Fix: Add missing summarizeDocument function
-export const summarizeDocument = async (content: string): Promise<string> => {
+export const summarizeDocument = async (content: string): Promise<string | null> => {
     const client = getClient();
     const prompt = `Summarize this document concisely:\n\n${content}`;
     try {
@@ -190,14 +206,18 @@ export const summarizeDocument = async (content: string): Promise<string> => {
             model: summaryModel,
             contents: prompt,
         });
+        if (!response.text) {
+            throw new Error("No response text received from AI");
+        }
         return response.text;
     } catch (error) {
         handleApiError(error);
     }
+    return null;
 };
 
 // Fix: Add missing generateNotesFromText function
-export const generateNotesFromText = async (content: string): Promise<string> => {
+export const generateNotesFromText = async (content: string): Promise<string | null> => {
     const client = getClient();
     const prompt = `You are an expert student. Create a structured study guide from the following text. Use markdown for formatting, including headings, bullet points, and bold text for key terms.
     Content to process:
@@ -207,14 +227,18 @@ export const generateNotesFromText = async (content: string): Promise<string> =>
             model: summaryModel, // "gemini-2.5-pro"
             contents: prompt,
         });
+        if (!response.text) {
+            throw new Error("No response text received from AI");
+        }
         return response.text;
     } catch (error) {
         handleApiError(error);
     }
+    return null;
 };
 
 // Fix: Add missing estimateAssignmentTime function
-export const estimateAssignmentTime = async (assignment: Assignment): Promise<string> => {
+export const estimateAssignmentTime = async (assignment: Assignment): Promise<string | null> => {
     const client = getClient();
     const prompt = `Based on the following assignment details, estimate the time required to complete it. Provide a concise estimate like "2-3 hours" or "45 minutes".
     Assignment: ${assignment.name}
@@ -226,10 +250,14 @@ export const estimateAssignmentTime = async (assignment: Assignment): Promise<st
             model: tutorModel, // flash for speed
             contents: prompt,
         });
+        if (!response.text) {
+            throw new Error("No response text received from AI");
+        }
         return response.text.trim();
     } catch (error) {
         handleApiError(error);
     }
+    return null;
 };
 
 // Fix: Add missing createTutorChat function
