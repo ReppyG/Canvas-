@@ -73,7 +73,7 @@ const GlobalAiChat: React.FC<GlobalAiChatProps> = ({ isOpen, onClose, courses, a
 
         try {
             const response = await chat.sendMessage({ message: input });
-            const modelResponse: AiTutorMessage = { role: 'model', text: response.text };
+            const modelResponse: AiTutorMessage = { role: 'model', text: response.text || 'No response received.' };
             setMessages(prev => [...prev, modelResponse]);
 
         } catch (error) {

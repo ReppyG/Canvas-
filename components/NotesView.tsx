@@ -59,7 +59,7 @@ const NotesView: React.FC = () => {
       }
       const result = await generateNotesFromText(content);
       // The service now throws, so we catch it below. The result is always a string on success.
-      setNotes(result);
+      setNotes(result || 'No notes generated');
     } catch (e: any) {
       console.error(e);
       setError(e.message || 'An unexpected client-side error occurred. Please check the console.');
@@ -121,7 +121,7 @@ const NotesView: React.FC = () => {
                     </h4>
                     {isConfigError ? (
                         <p className="mt-1">
-                           The application's AI features could not be accessed. This is likely due to a missing or invalid API key in the application's configuration. Please contact the administrator to resolve this issue.
+                           The application&apos;s AI features could not be accessed. This is likely due to a missing or invalid API key in the application&apos;s configuration. Please contact the administrator to resolve this issue.
                         </p>
                     ) : (
                         <p className="mt-1 whitespace-pre-wrap">{isGenericAiError ? error.replace('[AI Error]', '').trim() : error}</p>

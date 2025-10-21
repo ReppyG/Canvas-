@@ -65,7 +65,7 @@ const TextAiModal: React.FC<{
 
         try {
             const apiResult = await config.action(inputText);
-            setResult(apiResult);
+            setResult(apiResult || 'No result returned');
         } catch (e: any) {
             setError(e.message || 'An unexpected client error occurred.');
             console.error(e);
@@ -149,7 +149,7 @@ const AiToolsView: React.FC<{ assignments: Assignment[]; courses: Course[] }> = 
         <div className="md:col-span-2 bg-gray-800/50 p-6 rounded-lg border border-dashed border-gray-700 text-center">
             <h3 className="font-semibold text-white text-lg flex items-center justify-center gap-2"><SparklesIcon className="w-5 h-5 text-yellow-400" /> Assignment-Specific Tools</h3>
             <p className="text-gray-400 mt-2 text-sm max-w-2xl mx-auto">
-                For the <span className="font-semibold text-yellow-300">AI Study Planner</span> and <span className="font-semibold text-yellow-300">AI Tutor</span>, please navigate to the "Assignments" page and select the specific assignment you need help with.
+                For the <span className="font-semibold text-yellow-300">AI Study Planner</span> and <span className="font-semibold text-yellow-300">AI Tutor</span>, please navigate to the &quot;Assignments&quot; page and select the specific assignment you need help with.
             </p>
         </div>
       </div>

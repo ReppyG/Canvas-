@@ -34,7 +34,7 @@ const SummarizerView: React.FC = () => {
     try {
       const fileContent = await file.text();
       const result = await summarizeDocument(fileContent);
-      setSummary(result);
+      setSummary(result || 'No summary generated');
     } catch (e: any) {
       console.error(e);
       setError(e.message || 'Failed to read or summarize the file. Please try again with a plain text file.');

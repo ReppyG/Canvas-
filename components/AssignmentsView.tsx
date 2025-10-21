@@ -51,7 +51,7 @@ const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> =
 
         try {
             const response = await chat.sendMessage({ message: input });
-            const modelResponse: AiTutorMessage = { role: 'model', text: response.text };
+            const modelResponse: AiTutorMessage = { role: 'model', text: response.text || 'No response received.' };
             setMessages(prev => [...prev, modelResponse]);
 
         } catch (error) {
@@ -154,8 +154,10 @@ const AssignmentCard: React.FC<{
         // Fix: Use try-catch block to handle API errors from geminiService
         try {
             const time = await estimateAssignmentTime(assignment);
-            setEstimatedTime(time);
-            await saveEstimateToStorage(assignment.id, time);
+            setEstimatedTime(time || 'Unable to estimate');
+            if (time) {
+                await saveEstimateToStorage(assignment.id, time);
+            }
         } catch (e: any) {
             setEstimatedTime(e.message || '[AI Error] Failed to estimate.');
         } finally {

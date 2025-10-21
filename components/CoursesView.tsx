@@ -15,7 +15,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
             </div>
             <div className="p-5">
                 <h3 className="font-bold text-lg text-white truncate" title={course.name}>{course.name}</h3>
-                <p className="text-sm text-gray-400">{course.courseCode}</p>
+                <p className="text-sm text-gray-400">{course.course_code}</p>
             </div>
         </div>
     );
