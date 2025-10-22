@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Settings } from '../types';
 import { db } from '../services/firebaseService';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from './useAuth';
 
 const defaultSettings: Settings = { canvasUrl: '', apiToken: '', sampleDataMode: false };
@@ -13,7 +12,7 @@ export const useSettings = () => {
 
     const getSettingsDocRef = useCallback(() => {
         if (!user) return null;
-        return doc(db, 'users', user.id, 'data', 'settings');
+        return db.collection('users').doc(user.id).collection('data').doc('settings');
     }, [user]);
 
     useEffect(() => {
@@ -24,8 +23,8 @@ export const useSettings = () => {
                 setIsConfigured(false);
                 return;
             }
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
                 const storedSettings = docSnap.data() as Settings;
                 setSettings(storedSettings);
                 setIsConfigured(!!(storedSettings.canvasUrl && storedSettings.apiToken));
@@ -46,7 +45,7 @@ export const useSettings = () => {
     const saveSettings = useCallback(async (newSettings: Settings) => {
         const docRef = getSettingsDocRef();
         if (!docRef) return;
-        await setDoc(docRef, newSettings);
+        await docRef.set(newSettings);
         setSettings(newSettings);
         setIsConfigured(!!(newSettings.canvasUrl && newSettings.apiToken));
     }, [getSettingsDocRef]);
@@ -54,7 +53,7 @@ export const useSettings = () => {
     const clearSettings = useCallback(async () => {
         const docRef = getSettingsDocRef();
         if (!docRef) return;
-        await deleteDoc(docRef);
+        await docRef.delete();
         setSettings(defaultSettings);
         setIsConfigured(false);
     }, [getSettingsDocRef]);
@@ -64,7 +63,7 @@ export const useSettings = () => {
         if (!docRef) return;
         const currentSettings = settings || defaultSettings;
         const newSettings = { ...currentSettings, sampleDataMode: true };
-        await setDoc(docRef, newSettings);
+        await docRef.set(newSettings);
         setSettings(newSettings);
     }, [getSettingsDocRef, settings]);
 

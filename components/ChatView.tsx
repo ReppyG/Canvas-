@@ -2,20 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { UserChatMessage, ConversationSummary } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { db } from '../services/firebaseService';
-import { 
-    collection, 
-    query, 
-    where, 
-    orderBy, 
-    onSnapshot,
-    addDoc,
-    serverTimestamp,
-    or,
-    Timestamp,
-    limit,
-    doc,
-    setDoc
-} from 'firebase/firestore';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
 import { UsersIcon, SendIcon, PlusIcon, ClipboardCopyIcon, CheckIcon } from './icons/Icons';
 import { format, formatRelative, parseISO } from 'date-fns';
 
@@ -42,13 +30,11 @@ const ChatView: React.FC = () => {
         
         // This query fetches the latest message for every conversation the user is in.
         // It requires a composite index on (participants, timestamp) in Firestore.
-        const q = query(
-            collection(db, 'chats'), 
-            where('participants', 'array-contains', myId),
-            orderBy('timestamp', 'desc')
-        );
+        const q = db.collection('chats')
+            .where('participants', 'array-contains', myId)
+            .orderBy('timestamp', 'desc');
 
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const unsubscribe = q.onSnapshot((querySnapshot) => {
             const convos: UserChatMessage[] = [];
             querySnapshot.forEach(doc => {
                 const data = doc.data();
@@ -57,7 +43,7 @@ const ChatView: React.FC = () => {
                     senderId: data.senderId,
                     recipientId: data.recipientId,
                     text: data.text,
-                    timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                    timestamp: (data.timestamp as firebase.firestore.Timestamp)?.toDate().toISOString() || new Date().toISOString(),
                 });
             });
             setAllConversations(convos);
@@ -73,10 +59,10 @@ const ChatView: React.FC = () => {
             return;
         };
 
-        const messagesColRef = collection(db, 'chatMessages', activeChatId, 'messages');
-        const q = query(messagesColRef, orderBy('timestamp', 'asc'));
+        const messagesColRef = db.collection('chatMessages').doc(activeChatId).collection('messages');
+        const q = messagesColRef.orderBy('timestamp', 'asc');
 
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const unsubscribe = q.onSnapshot((querySnapshot) => {
             const messages = querySnapshot.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -84,7 +70,7 @@ const ChatView: React.FC = () => {
                     senderId: data.senderId,
                     recipientId: data.recipientId,
                     text: data.text,
-                    timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                    timestamp: (data.timestamp as firebase.firestore.Timestamp)?.toDate().toISOString() || new Date().toISOString(),
                 };
             });
             setActiveMessages(messages);
@@ -125,21 +111,21 @@ const ChatView: React.FC = () => {
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !activePeerId || !myId || !activeChatId) return;
 
-        const messagesColRef = collection(db, 'chatMessages', activeChatId, 'messages');
-        const chatDocRef = doc(db, 'chats', activeChatId);
+        const messagesColRef = db.collection('chatMessages').doc(activeChatId).collection('messages');
+        const chatDocRef = db.collection('chats').doc(activeChatId);
 
         const newMessagePayload = {
             senderId: myId,
             recipientId: activePeerId,
             text: messageInput.trim(),
-            timestamp: serverTimestamp(),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         };
 
         // Add to messages subcollection
-        await addDoc(messagesColRef, newMessagePayload);
+        await messagesColRef.add(newMessagePayload);
         
         // Update the top-level chat document for conversation list queries
-        await setDoc(chatDocRef, {
+        await chatDocRef.set({
             ...newMessagePayload,
             participants: [myId, activePeerId]
         });

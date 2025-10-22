@@ -2,18 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Note } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { db } from '../services/firebaseService';
-import { 
-    collection, 
-    query, 
-    orderBy, 
-    onSnapshot,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    doc,
-    serverTimestamp,
-    Timestamp
-} from 'firebase/firestore';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
 import { PlusIcon, TrashIcon, DocumentTextIcon } from './icons/Icons';
 import { format } from 'date-fns';
 
@@ -26,7 +16,7 @@ const NotesView: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     const notesCollectionRef = useMemo(() => {
-        return user ? collection(db, 'users', user.id, 'notes') : null;
+        return user ? db.collection('users').doc(user.id).collection('notes') : null;
     }, [user]);
 
     useEffect(() => {
@@ -37,17 +27,17 @@ const NotesView: React.FC = () => {
         }
         
         setIsLoading(true);
-        const q = query(notesCollectionRef, orderBy('updatedAt', 'desc'));
+        const q = notesCollectionRef.orderBy('updatedAt', 'desc');
 
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const unsubscribe = q.onSnapshot((querySnapshot) => {
             const notesData = querySnapshot.docs.map(doc => {
                 const data = doc.data();
                 return {
                     id: doc.id,
                     title: data.title,
                     content: data.content,
-                    createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
-                    updatedAt: (data.updatedAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                    createdAt: (data.createdAt as firebase.firestore.Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                    updatedAt: (data.updatedAt as firebase.firestore.Timestamp)?.toDate().toISOString() || new Date().toISOString(),
                 } as Note;
             });
             setNotes(notesData);
@@ -79,11 +69,11 @@ const NotesView: React.FC = () => {
 
     const handleNewNote = async () => {
         if (!notesCollectionRef) return;
-        const newNoteDoc = await addDoc(notesCollectionRef, {
+        const newNoteDoc = await notesCollectionRef.add({
             title: 'Untitled Note',
             content: '',
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
         setActiveNoteId(newNoteDoc.id);
     };
@@ -97,18 +87,18 @@ const NotesView: React.FC = () => {
         setCurrentContent(content);
 
         if (activeNoteId && notesCollectionRef) {
-             const noteDocRef = doc(notesCollectionRef, activeNoteId);
-             await updateDoc(noteDocRef, {
+             const noteDocRef = notesCollectionRef.doc(activeNoteId);
+             await noteDocRef.update({
                  title,
                  content,
-                 updatedAt: serverTimestamp()
+                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
              });
         }
     }, [activeNoteId, notesCollectionRef]);
 
     const handleDeleteNote = async (noteId: string) => {
         if (window.confirm('Are you sure you want to delete this note? This action cannot be undone.') && notesCollectionRef) {
-            await deleteDoc(doc(notesCollectionRef, noteId));
+            await notesCollectionRef.doc(noteId).delete();
             if (activeNoteId === noteId) {
                 setActiveNoteId(null);
             }
