@@ -138,7 +138,22 @@ export interface Settings {
 // Fix: Define and use an explicit `AIStudio` interface to resolve conflicting global type declarations.
 
 // Fix for line 146: Moved AIStudio interface into `declare global` to resolve conflicting global type declarations error.
+// Fix: Add global type declarations for `import.meta.env` to resolve TypeScript errors when accessing Vite environment variables.
 declare global {
+  interface ImportMetaEnv {
+    readonly VITE_FIREBASE_API_KEY: string;
+    readonly VITE_FIREBASE_AUTH_DOMAIN: string;
+    readonly VITE_FIREBASE_PROJECT_ID: string;
+    readonly VITE_FIREBASE_STORAGE_BUCKET: string;
+    readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string;
+    readonly VITE_FIREBASE_APP_ID: string;
+    readonly VITE_FIREBASE_MEASUREMENT_ID: string;
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
     openSelectKey: () => Promise<void>;
