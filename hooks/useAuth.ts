@@ -1,12 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { auth } from '../services/firebaseService';
-import { 
-    createUserWithEmailAndPassword, 
-    signInWithEmailAndPassword, 
-    signOut, 
-    onAuthStateChanged,
-    User as FirebaseUser
-} from 'firebase/auth';
+// Fix: Use Firebase v8 compat imports and types.
+// Fix for line 7: Changed import from 'firebase/app' to 'firebase/compat/app' for v8 compatibility.
+import firebase from 'firebase/compat/app';
+
+// Fix: Change type import to Firebase v8 compat style.
+type FirebaseUser = firebase.User;
 
 interface User {
     id: string;
@@ -28,7 +27,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+        // Fix: Use Firebase v8 compat `onAuthStateChanged` method.
+        const unsubscribe = auth.onAuthStateChanged((firebaseUser: FirebaseUser | null) => {
             if (firebaseUser) {
                 setUser({ id: firebaseUser.uid, email: firebaseUser.email });
             } else {
@@ -40,15 +40,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
-        await signInWithEmailAndPassword(auth, email, password);
+        // Fix: Use Firebase v8 compat `signInWithEmailAndPassword` method.
+        await auth.signInWithEmailAndPassword(email, password);
     }, []);
 
     const signup = useCallback(async (email: string, password: string): Promise<void> => {
-        await createUserWithEmailAndPassword(auth, email, password);
+        // Fix: Use Firebase v8 compat `createUserWithEmailAndPassword` method.
+        await auth.createUserWithEmailAndPassword(email, password);
     }, []);
 
     const logout = useCallback(async () => {
-        await signOut(auth);
+        // Fix: Use Firebase v8 compat `signOut` method.
+        await auth.signOut();
     }, []);
 
     const value = useMemo(() => ({ user, login, signup, logout, isLoading }), [user, login, signup, logout, isLoading]);

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { SparklesIcon, Loader2Icon } from './icons/Icons';
-import { AuthErrorCodes } from 'firebase/auth';
+// Fix: Removed import of `AuthErrorCodes` which is not available in Firebase v8 compat.
 
 const AuthView: React.FC = () => {
     const [isLoginView, setIsLoginView] = useState(true);
@@ -23,18 +23,20 @@ const AuthView: React.FC = () => {
                 await signup(email, password);
             }
         } catch (err: any) {
+            // Fix: Replaced Firebase v9 `AuthErrorCodes` enum with v8 string error codes.
              switch (err.code) {
-                case AuthErrorCodes.INVALID_EMAIL:
+                case 'auth/invalid-email':
                     setError('Please enter a valid email address.');
                     break;
-                case AuthErrorCodes.USER_DELETED:
-                case AuthErrorCodes.INVALID_LOGIN_CREDENTIALS:
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                case 'auth/invalid-credential':
                     setError('Invalid email or password.');
                     break;
-                case AuthErrorCodes.EMAIL_EXISTS:
+                case 'auth/email-already-in-use':
                     setError('An account with this email already exists. Please log in.');
                     break;
-                case AuthErrorCodes.WEAK_PASSWORD:
+                case 'auth/weak-password':
                     setError('Password should be at least 6 characters long.');
                     break;
                 default:
