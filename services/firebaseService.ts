@@ -14,7 +14,7 @@ import 'firebase/compat/firestore';
 // 5. Under "SDK setup and configuration", select "Config".
 // 6. Copy the entire `firebaseConfig` object and paste it below.
 
-c// Import the functions you need from the SDKs you need
+// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
@@ -41,7 +41,13 @@ const analytics = getAnalytics(app);
 // This ensures Firebase is initialized only once, preventing errors on hot reloads.
 let app;
 if (!firebase.apps.length) {
-  app = firebase.initializeApp(firebaseConfig);
+  // Check if firebaseConfig has been filled out
+  if (!firebaseConfig.apiKey) {
+    console.error("Firebase config is missing. Please add your project's configuration to services/firebaseService.ts");
+    // You might want to display an error to the user in the UI as well
+  } else {
+    app = firebase.initializeApp(firebaseConfig);
+  }
 } else {
   app = firebase.app();
 }
