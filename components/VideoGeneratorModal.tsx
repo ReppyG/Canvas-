@@ -84,7 +84,7 @@ const VideoGeneratorModal: React.FC<VideoGeneratorModalProps> = ({ onClose }) =>
             if (operation.done && operation.response?.generatedVideos?.[0]?.video?.uri) {
                 setLoadingMessage('Video generated! Preparing for playback...');
                 const downloadLink = operation.response.generatedVideos[0].video.uri;
-                const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+                const response = await fetch(`${downloadLink}&key=${import.meta.env.VITE_API_KEY}`);
                 if (!response.ok) throw new Error('Failed to download the generated video.');
                 const videoBlob = await response.blob();
                 const videoUrl = URL.createObjectURL(videoBlob);

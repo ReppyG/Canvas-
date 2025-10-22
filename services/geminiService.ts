@@ -14,7 +14,7 @@ const ttsModel = 'gemini-2.5-flash-preview-tts';
 const liveModel = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
 function getClient(apiKey?: string): GoogleGenAI {
-    const key = apiKey || process.env.API_KEY;
+    const key = apiKey || import.meta.env.VITE_API_KEY;
     if (!key) {
         throw new Error("Gemini API key is not configured. Please set the API_KEY environment variable.");
     }
@@ -457,7 +457,7 @@ export const editImage = async (base64Data: string, mimeType: string, prompt: st
 
 // --- Video Generation Service ---
 export const generateVideo = async (prompt: string, aspectRatio: '16:9' | '9:16', image?: { data: string, mimeType: string }): Promise<Operation> => {
-    const client = getClient(process.env.API_KEY); // Must create new client for fresh key
+    const client = getClient(import.meta.env.VITE_API_KEY); // Must create new client for fresh key
     try {
         const operation = await client.models.generateVideos({
             model: videoGenModel,
@@ -476,7 +476,7 @@ export const generateVideo = async (prompt: string, aspectRatio: '16:9' | '9:16'
 };
 
 export const getVideosOperation = async (operation: Operation): Promise<Operation> => {
-    const client = getClient(process.env.API_KEY); // Must create new client for fresh key
+    const client = getClient(import.meta.env.VITE_API_KEY); // Must create new client for fresh key
     try {
         const updatedOperation = await client.operations.getVideosOperation({ operation });
         return updatedOperation;
