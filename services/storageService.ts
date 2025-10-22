@@ -1,46 +1,48 @@
+// Implements a simple key-value storage using localStorage.
+// The methods are async to match a more robust storage service interface,
+// even though localStorage itself is synchronous.
 
-/**
- * A simple abstraction for storage that uses localStorage.
- */
-export const storage = {
+const storage = {
   /**
-   * Retrieves an item from storage.
+   * Retrieves an item from localStorage and parses it as JSON.
    * @param key The key of the item to retrieve.
-   * @returns The stored item, or null if not found.
+   * @returns The stored value, or null if not found or if an error occurs.
    */
   get: async <T>(key: string): Promise<T | null> => {
     try {
-      const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : null;
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : null;
     } catch (error) {
-      console.error(`Error getting item '${key}' from storage:`, error);
+      console.error(`Error getting item ${key} from localStorage`, error);
       return null;
     }
   },
 
   /**
-   * Saves an item to storage.
-   * @param key The key of the item to save.
-   * @param value The value to save.
+   * Serializes a value to JSON and stores it in localStorage.
+   * @param key The key under which to store the value.
+   * @param value The value to store.
    */
-  set: async (key: string, value: any): Promise<void> => {
+  set: async (key: string, value: unknown): Promise<void> => {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch (error)
-        {
-      console.error(`Error setting item '${key}' in storage:`, error);
+      const item = JSON.stringify(value);
+      window.localStorage.setItem(key, item);
+    } catch (error) {
+      console.error(`Error setting item ${key} in localStorage`, error);
     }
   },
 
   /**
-   * Removes an item from storage.
+   * Removes an item from localStorage.
    * @param key The key of the item to remove.
    */
   remove: async (key: string): Promise<void> => {
     try {
-      localStorage.removeItem(key);
+      window.localStorage.removeItem(key);
     } catch (error) {
-      console.error(`Error removing item '${key}' from storage:`, error);
+      console.error(`Error removing item ${key} from localStorage`, error);
     }
-  }
+  },
 };
+
+export { storage };

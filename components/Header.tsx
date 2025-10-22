@@ -1,19 +1,67 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { SearchIcon, ExclamationTriangleIcon, FilterIcon, ClockIcon } from './icons/Icons';
-import { Assignment, Course, AssignmentStatus } from '../types';
+import { SearchIcon, ExclamationTriangleIcon, FilterIcon, ClockIcon, SettingsIcon, LogOutIcon } from './icons/Icons';
+import { Assignment, Course, AssignmentStatus, Page } from '../types';
 import { format, isToday, startOfWeek, endOfWeek, addWeeks, isWithinInterval } from 'date-fns';
+import { useAuth } from '../hooks/useAuth';
 
 interface HeaderProps {
   assignments: Assignment[];
   courses: Course[];
   connectionStatus: 'live' | 'sample' | 'error';
   onAssignmentSelect: (assignment: Assignment) => void;
+  onSetPage: (page: Page) => void;
 }
 
 type DateRange = 'all' | 'today' | 'this_week' | 'next_week';
 const STATUSES: AssignmentStatus[] = ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'];
 
-const Header: React.FC<HeaderProps> = ({ assignments, courses, connectionStatus, onAssignmentSelect }) => {
+const UserProfile: React.FC<{ onSetPage: (page: Page) => void }> = ({ onSetPage }) => {
+    const { user, logout } = useAuth();
+    const [isOpen, setIsOpen] = useState(false);
+    const profileRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    if (!user) return null;
+
+    return (
+        <div className="relative" ref={profileRef}>
+            <button onClick={() => setIsOpen(!isOpen)} className="flex items-center gap-3 p-1 rounded-full transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center font-bold text-gray-600 dark:text-gray-300">
+                    {user.email.charAt(0).toUpperCase()}
+                </div>
+                <div className="text-left hidden md:block">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate max-w-32">{user.email}</p>
+                </div>
+            </button>
+            {isOpen && (
+                <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-700 rounded-md shadow-lg border border-gray-200 dark:border-gray-600 z-50 py-1 animate-fade-in-fast">
+                    <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-600">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.email}</p>
+                    </div>
+                    <button onClick={() => { onSetPage(Page.Settings); setIsOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2">
+                        <SettingsIcon className="w-4 h-4" />
+                        Settings
+                    </button>
+                    <button onClick={logout} className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50 flex items-center gap-2">
+                        <LogOutIcon className="w-4 h-4" />
+                        Log Out
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const Header: React.FC<HeaderProps> = ({ assignments, courses, connectionStatus, onAssignmentSelect, onSetPage }) => {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCourse, setSelectedCourse] = useState('all');
@@ -87,7 +135,7 @@ const Header: React.FC<HeaderProps> = ({ assignments, courses, connectionStatus,
                     <span>Connection to Canvas failed. You are viewing sample data.</span>
                 </div>
             )}
-            <header className="h-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center px-8">
+            <header className="h-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-8">
                 <div className="flex-1 relative" ref={searchRef}>
                     <div 
                         className="w-full max-w-lg bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 pl-11 pr-4 text-gray-900 dark:text-gray-100 flex items-center cursor-text"
@@ -173,9 +221,14 @@ const Header: React.FC<HeaderProps> = ({ assignments, courses, connectionStatus,
                         </div>
                     )}
                 </div>
+                <div className="ml-6">
+                    <UserProfile onSetPage={onSetPage}/>
+                </div>
             </header>
             <style>{`
                 .filter-select { @apply w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-blue-500; }
+                .animate-fade-in-fast { animation: fadeIn 0.2s ease-out; }
+                @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
             `}</style>
         </div>
     );

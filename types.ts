@@ -104,8 +104,8 @@ export interface Note {
 // User-to-user Chat types
 export interface UserChatMessage {
     id: string;
-    conversationId: string;
     senderId: string;
+    recipientId: string;
     text: string;
     timestamp: string;
 }
@@ -132,4 +132,20 @@ export interface Settings {
     canvasUrl: string;
     apiToken: string;
     sampleDataMode: boolean;
+}
+
+// Add aistudio to the window object for type safety
+// Fix: Define and use an explicit `AIStudio` interface to resolve conflicting global type declarations.
+
+// Fix for line 146: Moved AIStudio interface into `declare global` to resolve conflicting global type declarations error.
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    aistudio?: AIStudio;
+    webkitAudioContext: typeof AudioContext;
+  }
 }

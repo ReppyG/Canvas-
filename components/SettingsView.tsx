@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings } from '../types';
 import { testConnection } from '../services/canvasApiService';
-import { ExclamationTriangleIcon } from './icons/Icons';
+import { ExclamationTriangleIcon, SparklesIcon, ExternalLinkIcon, Loader2Icon } from './icons/Icons';
 
 interface SettingsViewProps {
     settings: Settings | null;
@@ -20,6 +20,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
     const [testStatus, setTestStatus] = useState<TestStatus>('idle');
     const [testMessage, setTestMessage] = useState('');
     const [displayError, setDisplayError] = useState(initialError);
+    const [isAiConfigured, setIsAiConfigured] = useState(false);
+    const [isCheckingAiConfig, setIsCheckingAiConfig] = useState(true);
 
     useEffect(() => {
         if (settings) {
@@ -33,6 +35,34 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
             setDisplayError(initialError);
         }
     }, [initialError]);
+
+    useEffect(() => {
+        const checkAiKey = async () => {
+            setIsCheckingAiConfig(true);
+            if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+                try {
+                    const hasKey = await window.aistudio.hasSelectedApiKey();
+                    setIsAiConfigured(hasKey);
+                } catch (e) {
+                    console.error("Error checking for AI Studio API key:", e);
+                    setIsAiConfigured(false);
+                }
+            } else {
+                setIsAiConfigured(false);
+            }
+            setIsCheckingAiConfig(false);
+        };
+        checkAiKey();
+    }, []);
+
+    const handleSelectAiKey = async () => {
+        if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+            await window.aistudio.openSelectKey();
+            // Assume success to avoid race condition and provide immediate feedback
+            setIsAiConfigured(true);
+        }
+    };
+
 
     const getFormattedUrl = () => {
         let formattedUrl = canvasUrl.trim();
@@ -83,9 +113,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
     return (
         <div className="animate-fade-in max-w-2xl mx-auto">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Settings</h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-8">Connect to your Canvas account to get live data.</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">Configure your connections to Canvas and Google AI.</p>
 
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Canvas LMS Connection</h2>
                 {displayError && (
                      <div className="mb-6 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-200 text-sm">
                          <div className="flex items-start">
@@ -183,8 +214,55 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
                 </form>
             </div>
             
+            <div className="mt-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">AI Feature Configuration</h2>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                            AI features are powered by the Google Gemini API. A configured API key is required.
+                        </p>
+                    </div>
+                    <SparklesIcon className="w-8 h-8 text-blue-500 flex-shrink-0"/>
+                </div>
+
+                {isCheckingAiConfig ? (
+                    <div className="flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                        <Loader2Icon className="w-5 h-5 animate-spin mr-2" />
+                        <span>Checking AI configuration...</span>
+                    </div>
+                ) : isAiConfigured ? (
+                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 text-green-800 dark:text-green-200">
+                        <h4 className="font-bold text-green-900 dark:text-green-100">AI Features Enabled</h4>
+                        <p className="text-sm mt-1">
+                            Your Google Gemini API key is configured and ready to use.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 text-yellow-800 dark:text-yellow-200">
+                        <div className="flex items-start">
+                            <ExclamationTriangleIcon className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-yellow-500"/>
+                            <div>
+                                <h4 className="font-bold text-yellow-900 dark:text-yellow-100">Action Required</h4>
+                                <p className="mt-1 text-sm">
+                                    To use the AI tools, please select a Google Gemini API key. This will open a dialog to choose your key.
+                                </p>
+                                <p className="mt-1 text-xs">
+                                    For more information on billing, see the <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="underline font-semibold">documentation</a>.
+                                </p>
+                                <button
+                                    onClick={handleSelectAiKey}
+                                    className="mt-4 px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors"
+                                >
+                                    Select Gemini API Key
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
             <div className="mt-8 bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-6 text-sm text-gray-600 dark:text-gray-400">
-                <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">How to get an API Access Token:</h3>
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">How to get a Canvas API Access Token:</h3>
                 <ol className="list-decimal list-inside space-y-1">
                     <li>Log in to your Canvas account.</li>
                     <li>Click on <strong>Account</strong> in the global navigation, then <strong>Settings</strong>.</li>

@@ -1,116 +1,195 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { UserChatMessage, ConversationSummary } from '../types';
-import { storage } from '../services/storageService';
-import { UsersIcon, SendIcon, PlusIcon } from './icons/Icons';
-import { format } from 'date-fns';
-
-const CHAT_ID_KEY = 'studentPlatformChatId';
-const CHAT_CONVERSATIONS_KEY = 'studentPlatformConversations';
+import { useAuth } from '../hooks/useAuth';
+import { db } from '../services/firebaseService';
+import { 
+    collection, 
+    query, 
+    where, 
+    orderBy, 
+    onSnapshot,
+    addDoc,
+    serverTimestamp,
+    or,
+    Timestamp,
+    limit,
+    doc,
+    setDoc
+} from 'firebase/firestore';
+import { UsersIcon, SendIcon, PlusIcon, ClipboardCopyIcon, CheckIcon } from './icons/Icons';
+import { format, formatRelative, parseISO } from 'date-fns';
 
 const ChatView: React.FC = () => {
-    const [myId, setMyId] = useState<string | null>(null);
-    const [conversations, setConversations] = useState<Record<string, UserChatMessage[]>>({});
+    const { user } = useAuth();
+    const myId = user?.id;
+    
+    const [allConversations, setAllConversations] = useState<UserChatMessage[]>([]);
     const [activePeerId, setActivePeerId] = useState<string | null>(null);
-    const [peerIdInput, setPeerIdInput] = useState('');
+    const [activeMessages, setActiveMessages] = useState<UserChatMessage[]>([]);
+    const [newPeerIdInput, setNewPeerIdInput] = useState('');
     const [messageInput, setMessageInput] = useState('');
+    const [copied, setCopied] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-    useEffect(() => {
-        const initializeChat = async () => {
-            let userId = await storage.get<string>(CHAT_ID_KEY);
-            if (!userId) {
-                userId = Math.floor(100000 + Math.random() * 900000).toString();
-                await storage.set(CHAT_ID_KEY, userId);
-            }
-            setMyId(userId);
+    const activeChatId = useMemo(() => {
+        if (!myId || !activePeerId) return null;
+        return [myId, activePeerId].sort().join('_');
+    }, [myId, activePeerId]);
 
-            const storedConversations = await storage.get<Record<string, UserChatMessage[]>>(CHAT_CONVERSATIONS_KEY);
-            if (storedConversations) {
-                setConversations(storedConversations);
-            }
+    // Listen for all conversations for the sidebar
+    useEffect(() => {
+        if (!myId) return;
+        
+        // This query fetches the latest message for every conversation the user is in.
+        // It requires a composite index on (participants, timestamp) in Firestore.
+        const q = query(
+            collection(db, 'chats'), 
+            where('participants', 'array-contains', myId),
+            orderBy('timestamp', 'desc')
+        );
+
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const convos: UserChatMessage[] = [];
+            querySnapshot.forEach(doc => {
+                const data = doc.data();
+                convos.push({
+                    id: doc.id,
+                    senderId: data.senderId,
+                    recipientId: data.recipientId,
+                    text: data.text,
+                    timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                });
+            });
+            setAllConversations(convos);
+        });
+
+        return () => unsubscribe();
+    }, [myId]);
+
+    // Listen for messages in the active chat
+    useEffect(() => {
+        if (!activeChatId) {
+            setActiveMessages([]);
+            return;
         };
-        initializeChat();
-    }, []);
+
+        const messagesColRef = collection(db, 'chatMessages', activeChatId, 'messages');
+        const q = query(messagesColRef, orderBy('timestamp', 'asc'));
+
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const messages = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    senderId: data.senderId,
+                    recipientId: data.recipientId,
+                    text: data.text,
+                    timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                };
+            });
+            setActiveMessages(messages);
+        });
+
+        return () => unsubscribe();
+    }, [activeChatId]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [conversations, activePeerId]);
-
-    const saveConversations = useCallback(async (updatedConversations: Record<string, UserChatMessage[]>) => {
-        await storage.set(CHAT_CONVERSATIONS_KEY, updatedConversations);
-    }, []);
-
+    }, [activeMessages]);
+    
     const conversationSummaries = useMemo<ConversationSummary[]>(() => {
-        return Object.keys(conversations)
-            .map(peerId => {
-                const messages = conversations[peerId];
-                if (messages.length === 0) return null;
-                const lastMessage = messages[messages.length - 1];
-                return {
+        if (!myId) return [];
+        const uniquePeers = new Map<string, ConversationSummary>();
+        allConversations.forEach(msg => {
+            const peerId = msg.senderId === myId ? msg.recipientId : msg.senderId;
+            if (!uniquePeers.has(peerId)) {
+                uniquePeers.set(peerId, {
                     peerId,
-                    lastMessage: lastMessage.text,
-                    timestamp: lastMessage.timestamp,
-                };
-            })
-            .filter((summary): summary is ConversationSummary => summary !== null)
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    }, [conversations]);
+                    lastMessage: msg.text,
+                    timestamp: msg.timestamp,
+                });
+            }
+        });
+        return Array.from(uniquePeers.values());
+    }, [allConversations, myId]);
+
 
     const handleStartChat = () => {
-        const peerId = peerIdInput.trim();
-        if (peerId && peerId !== myId && !conversations[peerId]) {
-            const updatedConversations = { ...conversations, [peerId]: [] };
-            setConversations(updatedConversations);
-            saveConversations(updatedConversations);
+        const peerId = newPeerIdInput.trim();
+        if (peerId && peerId !== myId) {
             setActivePeerId(peerId);
+            setNewPeerIdInput('');
         }
-        setPeerIdInput('');
     };
 
-    const handleSendMessage = () => {
-        if (!messageInput.trim() || !activePeerId || !myId) return;
+    const handleSendMessage = async () => {
+        if (!messageInput.trim() || !activePeerId || !myId || !activeChatId) return;
 
-        const conversationId = [myId, activePeerId].sort().join('-');
-        const newMessage: UserChatMessage = {
-            id: Date.now().toString(),
-            conversationId,
+        const messagesColRef = collection(db, 'chatMessages', activeChatId, 'messages');
+        const chatDocRef = doc(db, 'chats', activeChatId);
+
+        const newMessagePayload = {
             senderId: myId,
+            recipientId: activePeerId,
             text: messageInput.trim(),
-            timestamp: new Date().toISOString(),
+            timestamp: serverTimestamp(),
         };
+
+        // Add to messages subcollection
+        await addDoc(messagesColRef, newMessagePayload);
         
-        const updatedPeerConvo = [...(conversations[activePeerId] || []), newMessage];
-        const updatedConversations = { ...conversations, [activePeerId]: updatedPeerConvo };
-        
-        setConversations(updatedConversations);
-        saveConversations(updatedConversations);
+        // Update the top-level chat document for conversation list queries
+        await setDoc(chatDocRef, {
+            ...newMessagePayload,
+            participants: [myId, activePeerId]
+        });
+
         setMessageInput('');
     };
 
-    const activeMessages = useMemo(() => {
-        if (!activePeerId) return [];
-        return conversations[activePeerId] || [];
-    }, [activePeerId, conversations]);
+    const handleCopyToClipboard = () => {
+        if (myId) {
+            navigator.clipboard.writeText(myId).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            });
+        }
+    };
+
+    if (!myId) {
+        return (
+            <div className="flex h-full items-center justify-center p-8 bg-white dark:bg-gray-800 rounded-lg">
+                <p className="text-gray-600 dark:text-gray-400">Authenticating...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-full animate-fade-in bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            {/* Conversations List */}
-            <div className="w-1/3 h-full flex flex-col border-r border-gray-200 dark:border-gray-700">
+            <div className="w-full sm:w-1/3 md:w-1/4 h-full flex flex-col border-r border-gray-200 dark:border-gray-700">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Chats</h2>
-                    <div className="text-sm p-2 rounded-md bg-gray-100 dark:bg-gray-700 text-center">
-                        <span className="font-semibold text-gray-800 dark:text-gray-200">Your Chat ID: </span>
-                        <span className="font-mono text-blue-600 dark:text-blue-400">{myId || '...'}</span>
+                    <div className="text-sm p-3 rounded-md bg-gray-100 dark:bg-gray-700 text-center">
+                        <span className="font-semibold text-gray-800 dark:text-gray-200 block mb-1">Your Chat ID:</span>
+                        <div className="flex items-center justify-center gap-2">
+                            <span className="font-bold text-lg text-blue-600 dark:text-blue-400 bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded truncate" title={myId}>
+                                {myId}
+                            </span>
+                            <button onClick={handleCopyToClipboard} className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 relative" aria-label="Copy ID">
+                                {copied ? <CheckIcon className="w-5 h-5 text-green-500" /> : <ClipboardCopyIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />}
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Share this ID to chat with others.</p>
                     </div>
                 </div>
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            value={peerIdInput}
-                            onChange={(e) => setPeerIdInput(e.target.value)}
-                            placeholder="Enter a Chat ID"
+                            value={newPeerIdInput}
+                            onChange={(e) => setNewPeerIdInput(e.target.value)}
+                            placeholder="Enter a Chat ID to start"
                             className="flex-1 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md py-2 px-3 text-sm"
+                            onKeyPress={(e) => e.key === 'Enter' && handleStartChat()}
                         />
                         <button onClick={handleStartChat} className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-500"><PlusIcon className="w-5 h-5"/></button>
                     </div>
@@ -118,27 +197,29 @@ const ChatView: React.FC = () => {
                 <div className="flex-1 overflow-y-auto">
                     {conversationSummaries.map(convo => (
                         <button key={convo.peerId} onClick={() => setActivePeerId(convo.peerId)} className={`w-full text-left p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${activePeerId === convo.peerId ? 'bg-blue-50 dark:bg-blue-900/50' : ''}`}>
-                            <h3 className="font-semibold text-gray-900 dark:text-white">User {convo.peerId}</h3>
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-semibold text-gray-900 dark:text-white truncate">{convo.peerId}</h3>
+                                <p className="text-xs text-gray-400 dark:text-gray-500">{formatRelative(parseISO(convo.timestamp), new Date())}</p>
+                            </div>
                             <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{convo.lastMessage}</p>
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Chat Window */}
             <div className="flex-1 flex flex-col">
                 {activePeerId ? (
                     <>
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                            <h3 className="font-bold text-lg text-gray-900 dark:text-white">Chat with User {activePeerId}</h3>
+                            <h3 className="font-bold text-lg text-gray-900 dark:text-white">Chat with {activePeerId}</h3>
                         </div>
                         <div className="flex-1 p-6 overflow-y-auto space-y-4">
                             {activeMessages.map(msg => (
-                                <div key={msg.id} className={`flex ${msg.senderId === myId ? 'justify-end' : 'justify-start'}`}>
+                                <div key={msg.id} className={`flex flex-col ${msg.senderId === myId ? 'items-end' : 'items-start'}`}>
                                     <div className={`max-w-md p-3 rounded-lg ${msg.senderId === myId ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
                                         <p className="text-sm">{msg.text}</p>
-                                        <p className="text-xs opacity-70 mt-1 text-right">{format(new Date(msg.timestamp), 'p')}</p>
                                     </div>
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 px-1">{format(new Date(msg.timestamp), 'p')}</p>
                                 </div>
                             ))}
                             <div ref={messagesEndRef} />
@@ -153,18 +234,15 @@ const ChatView: React.FC = () => {
                                     placeholder="Type a message..."
                                     className="flex-1 bg-transparent p-2 focus:outline-none"
                                 />
-                                <button onClick={handleSendMessage} className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-500"><SendIcon className="w-5 h-5"/></button>
+                                <button onClick={handleSendMessage} className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-500 disabled:opacity-50" disabled={!messageInput.trim()}><SendIcon className="w-5 h-5"/></button>
                             </div>
                         </div>
                     </>
                 ) : (
-                    <div className="flex h-full flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400">
+                    <div className="flex h-full flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400 p-8">
                         <UsersIcon className="w-16 h-16 mb-4" />
-                        <h3 className="text-xl font-semibold">Select a chat</h3>
-                        <p className="max-w-sm">Choose a conversation from the list, or start a new one by entering a user's Chat ID.</p>
-                        <div className="mt-4 text-xs p-2 bg-yellow-50 dark:bg-yellow-900/50 border border-yellow-200 dark:border-yellow-800 rounded-md text-yellow-800 dark:text-yellow-300">
-                            <strong>Note:</strong> This is a local chat simulation. Messages are only stored in your browser and are not sent to other users.
-                        </div>
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Select a chat</h3>
+                        <p className="max-w-sm mt-2">Choose a conversation from the list, or start a new one by entering a user's ID.</p>
                     </div>
                 )}
             </div>

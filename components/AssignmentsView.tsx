@@ -341,7 +341,9 @@ const AssignmentsView: React.FC<AssignmentsViewProps> = ({ courses, assignments,
                         return (
                            <div
                                 key={assignment.id}
-                                ref={(el) => (assignmentRefs.current[assignment.id] = el)}
+                                ref={(el) => {
+                                    assignmentRefs.current[assignment.id] = el;
+                                }}
                            >
                                <AssignmentCard
                                    assignment={assignment} 

@@ -1,32 +1,67 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Note } from '../types';
-import { storage } from '../services/storageService';
+import { useAuth } from '../hooks/useAuth';
+import { db } from '../services/firebaseService';
+import { 
+    collection, 
+    query, 
+    orderBy, 
+    onSnapshot,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    doc,
+    serverTimestamp,
+    Timestamp
+} from 'firebase/firestore';
 import { PlusIcon, TrashIcon, DocumentTextIcon } from './icons/Icons';
 import { format } from 'date-fns';
 
-const NOTES_STORAGE_KEY = 'studentPlatformNotes';
-
 const NotesView: React.FC = () => {
+    const { user } = useAuth();
     const [notes, setNotes] = useState<Note[]>([]);
     const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
     const [currentTitle, setCurrentTitle] = useState('');
     const [currentContent, setCurrentContent] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        const loadNotes = async () => {
-            const storedNotes = await storage.get<Note[]>(NOTES_STORAGE_KEY);
-            if (storedNotes) {
-                setNotes(storedNotes);
-            }
-            setIsLoading(false);
-        };
-        loadNotes();
-    }, []);
+    const notesCollectionRef = useMemo(() => {
+        return user ? collection(db, 'users', user.id, 'notes') : null;
+    }, [user]);
 
-    const sortedNotes = useMemo(() => {
-        return [...notes].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    }, [notes]);
+    useEffect(() => {
+        if (!notesCollectionRef) {
+            setNotes([]);
+            setIsLoading(false);
+            return;
+        }
+        
+        setIsLoading(true);
+        const q = query(notesCollectionRef, orderBy('updatedAt', 'desc'));
+
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const notesData = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    title: data.title,
+                    content: data.content,
+                    createdAt: (data.createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                    updatedAt: (data.updatedAt as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                } as Note;
+            });
+            setNotes(notesData);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching notes:", error);
+            setIsLoading(false);
+        });
+
+        // Deselect note when user changes
+        setActiveNoteId(null);
+
+        return () => unsubscribe();
+    }, [notesCollectionRef]);
 
     const activeNote = useMemo(() => {
         return notes.find(note => note.id === activeNoteId);
@@ -42,46 +77,38 @@ const NotesView: React.FC = () => {
         }
     }, [activeNote]);
 
-    const saveNotes = useCallback(async (notesToSave: Note[]) => {
-        await storage.set(NOTES_STORAGE_KEY, notesToSave);
-    }, []);
-
-    const handleNewNote = () => {
-        const newNote: Note = {
-            id: Date.now().toString(),
+    const handleNewNote = async () => {
+        if (!notesCollectionRef) return;
+        const newNoteDoc = await addDoc(notesCollectionRef, {
             title: 'Untitled Note',
             content: '',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        };
-        const updatedNotes = [newNote, ...notes];
-        setNotes(updatedNotes);
-        setActiveNoteId(newNote.id);
-        saveNotes(updatedNotes);
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+        setActiveNoteId(newNoteDoc.id);
     };
 
     const handleSelectNote = (noteId: string) => {
         setActiveNoteId(noteId);
     };
 
-    const handleNoteChange = (title: string, content: string) => {
+    const handleNoteChange = useCallback(async (title: string, content: string) => {
         setCurrentTitle(title);
         setCurrentContent(content);
 
-        const updatedNotes = notes.map(note => 
-            note.id === activeNoteId 
-                ? { ...note, title, content, updatedAt: new Date().toISOString() } 
-                : note
-        );
-        setNotes(updatedNotes);
-        saveNotes(updatedNotes);
-    };
+        if (activeNoteId && notesCollectionRef) {
+             const noteDocRef = doc(notesCollectionRef, activeNoteId);
+             await updateDoc(noteDocRef, {
+                 title,
+                 content,
+                 updatedAt: serverTimestamp()
+             });
+        }
+    }, [activeNoteId, notesCollectionRef]);
 
-    const handleDeleteNote = (noteId: string) => {
-        if (window.confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
-            const updatedNotes = notes.filter(note => note.id !== noteId);
-            setNotes(updatedNotes);
-            saveNotes(updatedNotes);
+    const handleDeleteNote = async (noteId: string) => {
+        if (window.confirm('Are you sure you want to delete this note? This action cannot be undone.') && notesCollectionRef) {
+            await deleteDoc(doc(notesCollectionRef, noteId));
             if (activeNoteId === noteId) {
                 setActiveNoteId(null);
             }
@@ -111,9 +138,9 @@ const NotesView: React.FC = () => {
                     </button>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                    {sortedNotes.length > 0 ? (
+                    {notes.length > 0 ? (
                         <ul>
-                            {sortedNotes.map(note => (
+                            {notes.map(note => (
                                 <li key={note.id}>
                                     <button
                                         onClick={() => handleSelectNote(note.id)}
