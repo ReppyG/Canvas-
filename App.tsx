@@ -35,7 +35,7 @@ const App: React.FC = () => {
 
 
     useEffect(() => {
-        if (!process.env.API_KEY) {
+        if (!import.meta.env.VITE_API_KEY) {
             setIsAiConfigured(false);
         }
     }, []);
