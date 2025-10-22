@@ -5,7 +5,7 @@ const fetchFromCanvas = async (endpoint: string, domain: string, token: string):
     
     const response = await fetch(proxyUrl, {
         headers: { 
-            'X-Canvas-URL': `https://${domain.replace(/^https?:\/\//, '')}`,
+            'X-Canvas-URL': domain,
             'X-Canvas-Token': token
         }
     });
