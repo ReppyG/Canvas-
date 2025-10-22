@@ -20,7 +20,16 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ onSave, onEnableSampleD
 
     const getFormattedUrl = () => {
         let formattedUrl = canvasUrl.trim();
-        formattedUrl = formattedUrl.replace(/^https?:\/\//, '');
+        if (!formattedUrl) return '';
+
+        // Ensure it starts with https://, or force https if it's http
+        if (!/^https?:\/\//i.test(formattedUrl)) {
+            formattedUrl = 'https://' + formattedUrl;
+        } else {
+            formattedUrl = formattedUrl.replace(/^http:\/\//i, 'https://');
+        }
+
+        // Remove trailing slash
         if (formattedUrl.endsWith('/')) {
             formattedUrl = formattedUrl.slice(0, -1);
         }
@@ -104,7 +113,7 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ onSave, onEnableSampleD
                         <li>
                             Click the button below to open your Canvas settings in a new tab.
                             <a
-                                href={`https://${getFormattedUrl()}/profile/settings`}
+                                href={`${getFormattedUrl()}/profile/settings`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-semibold rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"

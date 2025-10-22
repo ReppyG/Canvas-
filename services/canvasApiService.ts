@@ -1,11 +1,11 @@
 import { Course, Assignment, Settings, AssignmentStatus } from '../types';
 
-const fetchFromCanvas = async (endpoint: string, domain: string, token: string): Promise<any> => {
+const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: string): Promise<any> => {
     const proxyUrl = `/api/canvas-proxy?endpoint=${encodeURIComponent(endpoint)}`;
     
     const response = await fetch(proxyUrl, {
         headers: { 
-            'X-Canvas-URL': `https://${domain.replace(/^https?:\/\//, '')}`,
+            'X-Canvas-URL': canvasUrl,
             'X-Canvas-Token': token
         }
     });
@@ -77,6 +77,6 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
     return allAssignments.filter(a => a.due_at);
 };
 
-export const testConnection = async (domain: string, token: string): Promise<void> => {
-    await fetchFromCanvas('users/self', domain, token);
+export const testConnection = async (canvasUrl: string, token: string): Promise<void> => {
+    await fetchFromCanvas('users/self', canvasUrl, token);
 };

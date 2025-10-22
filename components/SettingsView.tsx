@@ -52,6 +52,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
             }
             setIsCheckingAiConfig(false);
         };
+        // Fix: Corrected typo in function call.
         checkAiKey();
     }, []);
 
@@ -66,8 +67,16 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, onClear, 
 
     const getFormattedUrl = () => {
         let formattedUrl = canvasUrl.trim();
-        // Just return the domain, the service will add https://
-        formattedUrl = formattedUrl.replace(/^https?:\/\//, '');
+        if (!formattedUrl) return '';
+
+        // Ensure it starts with https://, or force https if it's http
+        if (!/^https?:\/\//i.test(formattedUrl)) {
+            formattedUrl = 'https://' + formattedUrl;
+        } else {
+            formattedUrl = formattedUrl.replace(/^http:\/\//i, 'https://');
+        }
+
+        // Remove trailing slash
         if (formattedUrl.endsWith('/')) {
             formattedUrl = formattedUrl.slice(0, -1);
         }
