@@ -1,5 +1,4 @@
 // services/firebaseService.ts
-// Fix for lines 30, 31, 33, 36, 37: Changed imports to use Firebase v8 compatibility modules.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
@@ -15,7 +14,6 @@ import 'firebase/compat/firestore';
 // 4. In the "Your apps" card, select the web app for this project.
 // 5. Under "SDK setup and configuration", select "Config".
 // 6. Copy the entire `firebaseConfig` object and paste it below.
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
@@ -32,12 +30,6 @@ const firebaseConfig = {
   appId: "1:712522010755:web:14b99c2d96fa610bc38bb6",
   measurementId: "G-NKBJW0HCEZ"
 };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-
-
 // --- Firebase Initialization ---
 // This ensures Firebase is initialized only once, preventing errors on hot reloads.
 let app;
