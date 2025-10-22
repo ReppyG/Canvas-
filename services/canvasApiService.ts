@@ -43,28 +43,37 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
     const { canvasUrl, apiToken } = settings;
     if (!canvasUrl || !apiToken) return [];
 
+    // First, get all courses to create a map of course ID to course name. This is needed
+    // because the general assignments endpoint below does not include the course name.
     const courses = await getCourses(settings);
-    const allAssignments: Assignment[] = [];
-    for (const course of courses.slice(0, 10)) { // Limiting for performance
-        try {
-            const assignmentsData = await fetchFromCanvas(`courses/${course.id}/assignments`, canvasUrl, apiToken);
-            if (Array.isArray(assignmentsData)) {
-                const enrichedAssignments = assignmentsData.map((a: any) => ({
-                    id: a.id,
-                    name: a.name,
-                    description: a.description,
-                    due_at: a.due_at,
-                    points_possible: a.points_possible,
-                    course_id: course.id,
-                    courseName: course.name,
-                    status: (a.has_submitted_submissions ? 'COMPLETED' : 'NOT_STARTED') as AssignmentStatus,
-                }));
-                allAssignments.push(...enrichedAssignments);
-            }
-        } catch (err) {
-            console.error(`Error fetching assignments for course ${course.id}:`, err);
-        }
+    const courseMap = new Map(courses.map(course => [course.id, course.name]));
+
+    // Fetch all assignments for the user in a single, more efficient API call.
+    // The '/assignments' endpoint, when called with a student token, returns assignments
+    // for all of their active courses. This is the correct, student-centric way to fetch this data.
+    // We request a large number per page to avoid pagination issues with the current proxy.
+    const assignmentsData = await fetchFromCanvas('assignments?per_page=100', canvasUrl, apiToken);
+
+    if (!Array.isArray(assignmentsData)) {
+        console.error("Expected an array of assignments from Canvas API but received:", assignmentsData);
+        // Return empty array to prevent crashes downstream
+        return [];
     }
+    
+    const allAssignments: Assignment[] = assignmentsData.map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        due_at: a.due_at,
+        points_possible: a.points_possible,
+        course_id: a.course_id,
+        // Enrich with course name from our map
+        courseName: courseMap.get(a.course_id) || 'Unknown Course',
+        status: (a.has_submitted_submissions ? 'COMPLETED' : 'NOT_STARTED') as AssignmentStatus,
+    }));
+    
+    // The app handles filtering and sorting, but we filter out assignments without a due date
+    // as they are typically not actionable in the same way.
     return allAssignments.filter(a => a.due_at);
 };
 
