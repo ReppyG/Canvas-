@@ -18,6 +18,7 @@ import IntegrationsView from './components/IntegrationsView';
 import SettingsView from './components/SettingsView';
 import AuthView from './components/AuthView';
 import GlobalAiChat from './components/GlobalAiChat';
+import OnboardingView from './components/OnboardingView';
 import { SparklesIcon, Loader2Icon } from './components/icons/Icons';
 
 const App: React.FC = () => {
@@ -70,6 +71,10 @@ const App: React.FC = () => {
 
     if (settings === null) {
         return loadingScreen('Loading User Settings...');
+    }
+
+    if (!isConfigured && !settings.sampleDataMode) {
+        return <OnboardingView onSave={saveSettings} onEnableSampleDataMode={enableSampleDataMode} />;
     }
     
     const renderPage = () => {

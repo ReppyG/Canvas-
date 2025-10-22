@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Course, Assignment, AiTutorMessage, Settings, AssignmentStatus } from '../types';
 import { format } from 'date-fns';
 import { estimateAssignmentTime, createTutorChat } from '../services/geminiService';
@@ -22,13 +22,13 @@ const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> =
         }
     }, [assignment]);
     
-    useState(() => {
+    useEffect(() => {
         if (!chat) {
             setMessages([{ role: 'model', text: 'Failed to initialize AI Tutor. The Gemini API key may be missing or invalid.' }]);
         } else {
             setMessages([{ role: 'model', text: `Hello! I'm here to help you with your "${assignment.name}" assignment. Ask me anything to get started.` }]);
         }
-    });
+    }, [chat, assignment.name]);
 
     const sendMessage = async () => {
         if (!chat) {
@@ -129,7 +129,7 @@ const AssignmentCard: React.FC<{
     const [isEstimatingTime, setIsEstimatingTime] = useState(false);
     const [canvasLink, setCanvasLink] = useState<string | null>(null);
 
-    useState(() => {
+    useEffect(() => {
         const SETTINGS_KEY = 'canvasAiAssistantSettings';
         const loadSettings = async () => {
             const settings = await storage.get<Settings>(SETTINGS_KEY);
@@ -138,9 +138,9 @@ const AssignmentCard: React.FC<{
             }
         };
         loadSettings();
-    });
+    }, [assignment.course_id, assignment.id]);
 
-    const handleEstimateTime = async (forceRefresh = false) => {
+    const handleEstimateTime = useCallback(async (forceRefresh = false) => {
         setIsEstimatingTime(true);
         
         if (!forceRefresh) {
@@ -161,11 +161,11 @@ const AssignmentCard: React.FC<{
         } finally {
             setIsEstimatingTime(false);
         }
-    };
+    }, [assignment]);
 
-    useState(() => {
+    useEffect(() => {
         handleEstimateTime();
-    });
+    }, [handleEstimateTime]);
 
     return (
       <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:border-blue-500/50">
@@ -267,25 +267,6 @@ const AssignmentsView: React.FC<AssignmentsViewProps> = ({ courses, assignments,
         }
     }, [initialCourseId, onNavigated]);
 
-    useEffect(() => {
-        if (highlightedAssignmentId) {
-            const element = assignmentRefs.current[highlightedAssignmentId];
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                element.classList.add('highlight-animation');
-                const timer = setTimeout(() => {
-                    element.classList.remove('highlight-animation');
-                    onHighlightDone();
-                }, 2500); // Duration of animation
-                return () => clearTimeout(timer);
-            } else {
-                // If element isn't rendered yet, clear highlight to prevent it from sticking
-                onHighlightDone();
-            }
-        }
-    }, [highlightedAssignmentId, onHighlightDone, assignments]); // Rerun if assignments change
-
-
     const filteredAssignments = useMemo(() => {
         const sorted = [...assignments].sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime());
         if (selectedCourseId === 'all') {
@@ -295,6 +276,32 @@ const AssignmentsView: React.FC<AssignmentsViewProps> = ({ courses, assignments,
     }, [selectedCourseId, assignments]);
 
     const courseMap = useMemo(() => new Map(courses.map(c => [c.id, c])), [courses]);
+
+    const isHighlightedAssignmentVisible = useMemo(() => {
+        if (!highlightedAssignmentId) return false;
+        return filteredAssignments.some(a => a.id === highlightedAssignmentId);
+    }, [filteredAssignments, highlightedAssignmentId]);
+
+    useEffect(() => {
+        if (highlightedAssignmentId && isHighlightedAssignmentVisible) {
+            const element = assignmentRefs.current[highlightedAssignmentId];
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                element.classList.add('highlight-animation');
+                const timer = setTimeout(() => {
+                    if (assignmentRefs.current[highlightedAssignmentId]) {
+                        assignmentRefs.current[highlightedAssignmentId]?.classList.remove('highlight-animation');
+                    }
+                    onHighlightDone();
+                }, 2500); // Duration of animation
+                return () => clearTimeout(timer);
+            }
+        } else if (highlightedAssignmentId) {
+            // Assignment not visible in current filter, so we can't highlight. Reset.
+            onHighlightDone();
+        }
+    }, [highlightedAssignmentId, isHighlightedAssignmentVisible, onHighlightDone]);
+
 
     return (
         <div className="animate-fade-in">
