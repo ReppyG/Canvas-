@@ -1,5 +1,21 @@
 import { Course, Assignment, Settings, AssignmentStatus } from '../types';
 
+const formatCanvasUrl = (url: string): string => {
+    if (!url) return '';
+    let formattedUrl = url.trim();
+
+    if (!/^https?:\/\//i.test(formattedUrl)) {
+        formattedUrl = 'https://' + formattedUrl;
+    } else {
+        formattedUrl = formattedUrl.replace(/^http:\/\//i, 'https://');
+    }
+
+    if (formattedUrl.endsWith('/')) {
+        formattedUrl = formattedUrl.slice(0, -1);
+    }
+    return formattedUrl;
+};
+
 const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: string): Promise<any> => {
     const proxyUrl = `/api/canvas-proxy?endpoint=${encodeURIComponent(endpoint)}`;
     
@@ -26,7 +42,8 @@ const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: strin
 };
 
 export const getCourses = async (settings: Settings): Promise<Course[]> => {
-    const { canvasUrl, apiToken } = settings;
+    const { apiToken } = settings;
+    const canvasUrl = formatCanvasUrl(settings.canvasUrl);
     if (!canvasUrl || !apiToken) return [];
     
     const coursesData: any[] = await fetchFromCanvas('courses?enrollment_state=active', canvasUrl, apiToken);
@@ -40,7 +57,8 @@ export const getCourses = async (settings: Settings): Promise<Course[]> => {
 };
 
 export const getAssignments = async (settings: Settings): Promise<Assignment[]> => {
-    const { canvasUrl, apiToken } = settings;
+    const { apiToken } = settings;
+    const canvasUrl = formatCanvasUrl(settings.canvasUrl);
     if (!canvasUrl || !apiToken) return [];
 
     // First, get all courses to create a map of course ID to course name. This is needed
@@ -78,5 +96,6 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
 };
 
 export const testConnection = async (canvasUrl: string, token: string): Promise<void> => {
-    await fetchFromCanvas('users/self', canvasUrl, token);
+    const formattedUrl = formatCanvasUrl(canvasUrl);
+    await fetchFromCanvas('users/self', formattedUrl, token);
 };
