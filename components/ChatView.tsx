@@ -18,6 +18,7 @@ const ChatView: React.FC = () => {
     const [messageInput, setMessageInput] = useState('');
     const [copied, setCopied] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const [explicitlyAddedPeers, setExplicitlyAddedPeers] = useState<string[]>([]);
 
     const activeChatId = useMemo(() => {
         if (!myId || !activePeerId) return null;
@@ -85,7 +86,10 @@ const ChatView: React.FC = () => {
     
     const conversationSummaries = useMemo<ConversationSummary[]>(() => {
         if (!myId) return [];
+        
         const uniquePeers = new Map<string, ConversationSummary>();
+        
+        // Process conversations from Firestore first
         allConversations.forEach(msg => {
             const peerId = msg.senderId === myId ? msg.recipientId : msg.senderId;
             if (!uniquePeers.has(peerId)) {
@@ -96,13 +100,31 @@ const ChatView: React.FC = () => {
                 });
             }
         });
-        return Array.from(uniquePeers.values());
-    }, [allConversations, myId]);
+
+        // Add any new peers that we've started a chat with but haven't sent a message to yet
+        explicitlyAddedPeers.forEach(peerId => {
+            if (!uniquePeers.has(peerId)) {
+                uniquePeers.set(peerId, {
+                    peerId,
+                    lastMessage: 'Start a new conversation...',
+                    timestamp: new Date().toISOString(), // Use current time to sort to the top
+                });
+            }
+        });
+
+        const summaries = Array.from(uniquePeers.values());
+        // Re-sort the list to ensure correct order after adding new peers
+        summaries.sort((a, b) => parseISO(b.timestamp).getTime() - parseISO(a.timestamp).getTime());
+
+        return summaries;
+    }, [allConversations, myId, explicitlyAddedPeers]);
 
 
     const handleStartChat = () => {
         const peerId = newPeerIdInput.trim();
         if (peerId && peerId !== myId) {
+            // Add to our local list of peers to ensure the conversation appears in the UI
+            setExplicitlyAddedPeers(prev => [...new Set([peerId, ...prev])]);
             setActivePeerId(peerId);
             setNewPeerIdInput('');
         }
@@ -168,16 +190,22 @@ const ChatView: React.FC = () => {
                     </div>
                 </div>
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex gap-2">
+                    <div className="flex items-center bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
                         <input
                             type="text"
                             value={newPeerIdInput}
                             onChange={(e) => setNewPeerIdInput(e.target.value)}
                             placeholder="Enter a Chat ID to start"
-                            className="flex-1 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md py-2 px-3 text-sm"
+                            className="flex-1 bg-transparent py-2 px-3 text-sm focus:outline-none text-gray-900 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400"
                             onKeyPress={(e) => e.key === 'Enter' && handleStartChat()}
                         />
-                        <button onClick={handleStartChat} className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-500"><PlusIcon className="w-5 h-5"/></button>
+                        <button 
+                            onClick={handleStartChat} 
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            aria-label="Start new chat"
+                        >
+                            <PlusIcon className="w-5 h-5"/>
+                        </button>
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
