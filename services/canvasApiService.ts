@@ -112,6 +112,8 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
 
 export const testConnection = async (canvasUrl: string, token: string): Promise<void> => {
     const formattedUrl = formatCanvasUrl(canvasUrl);
-    // Test connection by fetching self profile, a lightweight endpoint.
-    await fetchFromProxy('users/self', formattedUrl, token);
+    // Test connection by fetching the course list. This is a more realistic test
+    // as it requires the correct permissions, which is a common point of failure.
+    // Fetching 'users/self' can succeed even if course permissions are missing.
+    await fetchFromProxy('courses?per_page=1', formattedUrl, token);
 };
