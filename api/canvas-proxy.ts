@@ -1,5 +1,6 @@
 // api/canvas-proxy.ts
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import fetch from 'node-fetch'; // or native fetch if using Node 18+
+import type { VercelRequest, VercelResponse } from '@vercel/node'; // optional types only
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -53,3 +54,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
+
