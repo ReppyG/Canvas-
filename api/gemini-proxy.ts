@@ -227,7 +227,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         config.thinkingConfig = { thinkingBudget: 32768 };
                     }
                     
-                    const genAIResponse =.models.generateContent({
+                   // This is CORRECT
+                    const genAIResponse = await client.models.generateContent({
                         model: 'gemini-2.5-pro',
                         contents: `Summarize this document concisely:\n\n${sanitizedContent}`,
                         config,
