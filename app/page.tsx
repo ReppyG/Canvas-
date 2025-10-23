@@ -47,7 +47,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Failed to fetch:', err);
-      setError('An unknown error occurred. Check the console.');
+      setError(Request failed: ${err.message});
     } finally {
       setIsLoading(false);
     }
