@@ -39,7 +39,20 @@ const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: strin
         throw new Error(errorData.error || `Request failed with status ${response.status}`);
     }
     
-    return await response.json();
+    // Get the content type to check if response is actually JSON
+    const contentType = response.headers.get('content-type');
+    const responseText = await response.text();
+    
+    // Check if we received HTML instead of JSON (common when proxy endpoint is not configured)
+    if (!contentType?.includes('application/json') || responseText.trim().startsWith('<')) {
+        throw new Error('The proxy endpoint is not configured correctly. Please ensure the backend server is running or configure the Vite proxy settings.');
+    }
+    
+    try {
+        return JSON.parse(responseText);
+    } catch (e) {
+        throw new Error(`Invalid JSON response from Canvas API: ${responseText.slice(0, 100)}`);
+    }
 };
 
 export const getCourses = async (settings: Settings): Promise<Course[]> => {
