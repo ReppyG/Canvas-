@@ -17,7 +17,7 @@ const formatCanvasUrl = (url: string): string => {
 };
 
 const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: string): Promise<any> => {
-    const proxyUrl = `/api/canvas-proxy?endpoint=${encodeURIComponent(endpoint)}`;
+    const proxyUrl = `/.netlify/functions/canvas-proxy?endpoint=${encodeURIComponent(endpoint)}`;
     
     const response = await fetch(proxyUrl, {
         headers: { 
