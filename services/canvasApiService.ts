@@ -14,8 +14,8 @@ const formatCanvasUrl = (url: string): string => {
     // Remove any path segments (e.g., /login)
     formattedUrl = formattedUrl.split('/')[0];
     
-    // Ensure it's just the domain
-    return formattedUrl;
+    // Return with https:// protocol
+    return `https://${formattedUrl}`;
 };
 
 const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: string): Promise<any> => {
