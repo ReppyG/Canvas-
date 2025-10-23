@@ -132,8 +132,11 @@ const AssignmentCard: React.FC<{
 
     useEffect(() => {
         if (settings?.canvasUrl && assignment.course_id && assignment.id) {
-            // The URL from settings is already correctly formatted.
-            setCanvasLink(`${settings.canvasUrl}/courses/${assignment.course_id}/assignments/${assignment.id}`);
+            // Ensure the URL has the https:// protocol
+            const baseUrl = settings.canvasUrl.startsWith('http://') || settings.canvasUrl.startsWith('https://') 
+                ? settings.canvasUrl 
+                : `https://${settings.canvasUrl}`;
+            setCanvasLink(`${baseUrl}/courses/${assignment.course_id}/assignments/${assignment.id}`);
         } else {
             setCanvasLink(null);
         }
