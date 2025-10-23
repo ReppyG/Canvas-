@@ -166,15 +166,32 @@ function MainPage({ token, canvasUrl, onLogout }: { token: string; canvasUrl: st
         }),
       });
 
-      const data = await response.json();
-
+      // --- THIS IS THE FIX ---
+      
+      // Check if the response was successful (status 200-299)
       if (response.ok) {
-        // Success!
+        // If successful, we expect JSON
+        const data = await response.json();
         setCourses(data);
       } else {
-        // This will show the error from the API
-        setError(data.error); 
+        // If it failed, it might be a JSON error from our API
+        // or an HTML error page from Vercel (like a 404 or 500)
+        
+        // Let's try to get the error message as text first
+        const errorText = await response.text();
+        
+        // Try to parse it as JSON (in case our API sent a { error: "..." })
+        try {
+          const jsonError = JSON.parse(errorText);
+          setError(jsonError.error || "An unknown API error occurred.");
+        } catch (e) {
+          // It wasn't JSON, so it's probably an HTML error.
+          // Show the text we got (truncated to 100 chars).
+          setError(`API Error: ${response.status} - ${errorText.substring(0, 100)}...`);
+        }
       }
+      // --- END OF FIX ---
+
     } catch (err) {
       // This will show a client-side error (like network failure)
       // Make sure err is an Error object
@@ -229,7 +246,7 @@ function MainPage({ token, canvasUrl, onLogout }: { token: string; canvasUrl: st
           {courses && (
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4">
               <h2 className="text-2xl font-semibold mb-4">Your Courses</h2>
-              <pre className="text-sm bg-gray-100 dark:bg-gray-700 p-4 rounded overflow-x-auto">
+              <pre className="text-sm bg-gray-100 dark:bg-gamma-700 p-4 rounded overflow-x-auto">
                 {JSON.stringify(courses, null, 2)}
               </pre>
             </div>
