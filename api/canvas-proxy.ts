@@ -27,7 +27,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const fullUrl = `${canvasUrl}/api/v1/${endpoint}`;
+    // Ensure the URL has the https:// protocol
+    const baseUrl = canvasUrl.startsWith('http://') || canvasUrl.startsWith('https://') 
+      ? canvasUrl 
+      : `https://${canvasUrl}`;
+    const fullUrl = `${baseUrl}/api/v1/${endpoint}`;
     
     const response = await fetch(fullUrl, {
       method: 'GET',
