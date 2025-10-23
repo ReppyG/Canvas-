@@ -8,7 +8,7 @@ const CANVAS_ASSIGNMENT_IDS_KEY = 'canvasAiAssistantAssignmentIds';
 
 type CanvasService = {
     getCourses: (settings: Settings) => Promise<Course[]>;
-    getAssignments: (settings: Settings) => Promise<Assignment[]>;
+    getAssignments: (settings: Settings, courses: Course[]) => Promise<Assignment[]>; // <-- Updated signature
 }
 
 type MockCanvasService = {
@@ -42,8 +42,16 @@ export const useCanvasData = (settings: Settings | null, enabled: boolean) => {
           return;
       }
 
-      const coursesData = useSampleData ? await (mockService as MockCanvasService).getCourses() : await (apiService as CanvasService).getCourses(settings!);
-      const assignmentsData = useSampleData ? await (mockService as MockCanvasService).getAssignments() : await (apiService as CanvasService).getAssignments(settings!);
+      // **ARCHITECTURAL FIX**: Implement a clear, sequential data flow.
+      // 1. Fetch courses.
+      const coursesData = useSampleData 
+        ? await (mockService as MockCanvasService).getCourses() 
+        : await (apiService as Omit<CanvasService, 'getAssignments'>).getCourses(settings!);
+
+      // 2. Pass the fetched courses to getAssignments.
+      const assignmentsData = useSampleData 
+        ? await (mockService as MockCanvasService).getAssignments() 
+        : await (apiService as CanvasService).getAssignments(settings!, coursesData);
       
       if (!useSampleData && settings) {
           const newAssignmentIds = new Set(assignmentsData.map(a => a.id));

@@ -10,10 +10,12 @@ const formatCanvasUrl = (url: string): string => {
 
     try {
         const urlObject = new URL(formattedUrl);
+        // This robustly gets the base origin, e.g., "https://yourschool.instructure.com"
         return urlObject.origin;
     } catch (error) {
         console.error("Invalid URL provided for formatting:", formattedUrl, error);
-        return formattedUrl;
+        // Fallback for cases where URL might be malformed but still usable as a prefix
+        return formattedUrl.replace(/\/$/, ""); // Remove trailing slash
     }
 };
 
@@ -66,8 +68,10 @@ export const getCourses = async (settings: Settings): Promise<Course[]> => {
     const canvasUrl = formatCanvasUrl(settings.canvasUrl);
     if (!canvasUrl || !apiToken) return [];
     
+    // This is the correct, student-friendly endpoint to get all enrollments.
     const enrollmentsData: any[] = await fetchFromProxy('users/self/enrollments?state[]=active&include[]=course&per_page=50', canvasUrl, apiToken);
     
+    // Filter for active student enrollments and ensure the course object is valid
     return enrollmentsData
         .filter(enrollment => enrollment.type === 'StudentEnrollment' && enrollment.course && enrollment.course.name && !enrollment.course.access_restricted_by_date)
         .map(enrollment => ({
@@ -78,17 +82,15 @@ export const getCourses = async (settings: Settings): Promise<Course[]> => {
 };
 
 const getAssignmentsForCourse = async (courseId: number, canvasUrl: string, apiToken: string): Promise<any[]> => {
-    // Fetch assignments for one specific course. This is the student-friendly approach.
+    // Fetches assignments for one specific course.
     return fetchFromProxy(`courses/${courseId}/assignments?per_page=100&include[]=submission`, canvasUrl, apiToken);
 };
 
-export const getAssignments = async (settings: Settings): Promise<Assignment[]> => {
+// **ARCHITECTURAL FIX**: This function now depends on the pre-fetched course list.
+export const getAssignments = async (settings: Settings, courses: Course[]): Promise<Assignment[]> => {
     const { apiToken } = settings;
     const canvasUrl = formatCanvasUrl(settings.canvasUrl);
-    if (!canvasUrl || !apiToken) return [];
-
-    const courses = await getCourses(settings);
-    if (courses.length === 0) return [];
+    if (!canvasUrl || !apiToken || courses.length === 0) return [];
     
     const courseMap = new Map(courses.map(course => [course.id, course.name]));
 
@@ -96,16 +98,17 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
         getAssignmentsForCourse(course.id, canvasUrl, apiToken)
     );
 
-    // Use Promise.allSettled to ensure that even if one course fails (e.g., is concluded),
-    // we still get results from the others. This is a robust way to handle partial failures.
+    // **CRITICAL FIX**: Use `Promise.allSettled` to prevent one failed request
+    // (e.g., from an old/inaccessible course) from killing the entire operation.
     const results = await Promise.allSettled(assignmentPromises);
     
     const successfulAssignments: any[] = [];
     results.forEach((result, index) => {
         if (result.status === 'fulfilled') {
+            // Add the assignments from the successful API call.
             successfulAssignments.push(...result.value);
         } else {
-            // Log the error for the specific course that failed, for debugging purposes.
+            // Log the error for debugging but don't stop the application.
             console.warn(`Could not fetch assignments for course ${courses[index].name} (ID: ${courses[index].id}). Reason:`, result.reason);
         }
     });
@@ -113,12 +116,13 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
     const allAssignments: Assignment[] = successfulAssignments
         .filter(a => a && a.due_at && a.name && courseMap.has(a.course_id))
         .map((a: any) => {
+            // **IMPROVEMENT**: More robust status detection.
             let status: AssignmentStatus = 'NOT_STARTED';
             if (a.submission) {
-                if (a.submission.workflow_state === 'graded' || a.submission.score !== null) {
+                if (a.submission.workflow_state === 'graded' || a.submission.score !== null || a.submission.posted_at) {
                     status = 'COMPLETED';
                 } else if (a.submission.submitted_at) {
-                    status = 'IN_PROGRESS';
+                    status = 'IN_PROGRESS'; // Submitted but not graded.
                 }
             }
             
@@ -134,12 +138,14 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
             };
         });
     
-    return allAssignments;
+    // Sort by due date after all processing is complete.
+    return allAssignments.sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime());
 };
 
+
+// **CONSISTENCY FIX**: This now uses the same core endpoint as `getCourses`
+// to ensure the test is an accurate reflection of the app's required permissions.
 export const testConnection = async (canvasUrl: string, token: string): Promise<void> => {
     const formattedUrl = formatCanvasUrl(canvasUrl);
-    // Test connection by fetching enrollments. This is the most accurate test for
-    // the app's functionality, especially for student accounts.
-    await fetchFromProxy('users/self/enrollments?per_page=1', formattedUrl, token);
+    await fetchFromProxy('users/self/enrollments?per_page=1&state[]=active', formattedUrl, token);
 };
