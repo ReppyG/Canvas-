@@ -25,20 +25,29 @@ const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: strin
             'X-Canvas-Token': token
         }
     });
+    
+    const responseBody = await response.text(); // Read the body once as text.
 
     if (!response.ok) {
         let errorMessage = `Proxy Error (${response.status})`;
         try {
-            const errorData = await response.json();
-            errorMessage += `: ${errorData?.error || errorData?.errors?.[0]?.message || JSON.stringify(errorData)}`;
+            // Attempt to parse the text body for a detailed error message.
+            const errorData = JSON.parse(responseBody);
+            errorMessage += `: ${errorData?.error || errorData?.details?.error || errorData?.errors?.[0]?.message || JSON.stringify(errorData)}`;
         } catch (e) {
-             const textError = await response.text();
-             errorMessage += `: ${textError.slice(0, 200)}`;
+             // If parsing fails, use the raw text.
+             errorMessage += `: ${responseBody.slice(0, 200)}`;
         }
         throw new Error(errorMessage);
     }
     
-    return await response.json();
+    // If the response was successful, parse the text body we've already read.
+    try {
+        return JSON.parse(responseBody);
+    } catch (e) {
+        console.error("Failed to parse successful Canvas API response:", responseBody);
+        throw new Error("Received an invalid response from the Canvas API.");
+    }
 };
 
 export const getCourses = async (settings: Settings): Promise<Course[]> => {
