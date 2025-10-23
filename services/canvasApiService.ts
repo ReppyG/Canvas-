@@ -68,13 +68,16 @@ export const getCourses = async (settings: Settings): Promise<Course[]> => {
     const canvasUrl = formatCanvasUrl(settings.canvasUrl);
     if (!canvasUrl || !apiToken) return [];
     
-    const coursesData: any[] = await fetchFromProxy('courses?enrollment_state=active&per_page=50', canvasUrl, apiToken);
-    return coursesData
-        .filter(course => course.name && !course.access_restricted_by_date)
-        .map(course => ({
-            id: course.id,
-            name: course.name,
-            course_code: course.course_code,
+    // Fetch enrollments for the current user, including course data.
+    // This is more reliable for student accounts than fetching the general course list.
+    const enrollmentsData: any[] = await fetchFromProxy('users/self/enrollments?state[]=active&include[]=course&per_page=50', canvasUrl, apiToken);
+    
+    return enrollmentsData
+        .filter(enrollment => enrollment.course && enrollment.course.name && !enrollment.course.access_restricted_by_date)
+        .map(enrollment => ({
+            id: enrollment.course.id,
+            name: enrollment.course.name,
+            course_code: enrollment.course.course_code,
         }));
 };
 
