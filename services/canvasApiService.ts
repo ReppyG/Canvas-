@@ -17,23 +17,21 @@ const formatCanvasUrl = (url: string): string => {
 };
 
 const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: string): Promise<any> => {
-    const proxyUrl = `/.netlify/functions/canvas-proxy?endpoint=${encodeURIComponent(endpoint)}`;
+    const fullUrl = `${canvasUrl}/api/v1/${endpoint}`;
     
-    const response = await fetch(proxyUrl, {
+    const response = await fetch(fullUrl, {
         headers: { 
-            'X-Canvas-URL': canvasUrl,
-            'X-Canvas-Token': token
+            'Authorization': `Bearer ${token}`
         }
     });
     
-    const responseBody = await response.text(); // Read the body once as text.
-
     if (!response.ok) {
-        let errorMessage = `Proxy Error (${response.status})`;
+        const responseBody = await response.text();
+        let errorMessage = `Canvas API Error (${response.status})`;
         try {
-            // Attempt to parse the text body for a detailed error message.
+            // Attempt to parse for a detailed error message from Canvas.
             const errorData = JSON.parse(responseBody);
-            errorMessage += `: ${errorData?.error || errorData?.details?.error || errorData?.errors?.[0]?.message || JSON.stringify(errorData)}`;
+            errorMessage += `: ${errorData?.errors?.[0]?.message || JSON.stringify(errorData)}`;
         } catch (e) {
              // If parsing fails, use the raw text.
              errorMessage += `: ${responseBody.slice(0, 200)}`;
@@ -41,11 +39,11 @@ const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: strin
         throw new Error(errorMessage);
     }
     
-    // If the response was successful, parse the text body we've already read.
+    // If the response was successful, parse the JSON body.
     try {
-        return JSON.parse(responseBody);
+        return await response.json();
     } catch (e) {
-        console.error("Failed to parse successful Canvas API response:", responseBody);
+        console.error("Failed to parse successful Canvas API response:", e);
         throw new Error("Received an invalid response from the Canvas API.");
     }
 };
@@ -70,20 +68,13 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
     const canvasUrl = formatCanvasUrl(settings.canvasUrl);
     if (!canvasUrl || !apiToken) return [];
 
-    // First, get all courses to create a map of course ID to course name. This is needed
-    // because the general assignments endpoint below does not include the course name.
     const courses = await getCourses(settings);
     const courseMap = new Map(courses.map(course => [course.id, course.name]));
 
-    // Fetch all assignments for the user in a single, more efficient API call.
-    // The '/assignments' endpoint, when called with a student token, returns assignments
-    // for all of their active courses. This is the correct, student-centric way to fetch this data.
-    // We request a large number per page to avoid pagination issues with the current proxy.
     const assignmentsData = await fetchFromCanvas('assignments?per_page=100', canvasUrl, apiToken);
 
     if (!Array.isArray(assignmentsData)) {
         console.error("Expected an array of assignments from Canvas API but received:", assignmentsData);
-        // Return empty array to prevent crashes downstream
         return [];
     }
     
@@ -94,13 +85,10 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
         due_at: a.due_at,
         points_possible: a.points_possible,
         course_id: a.course_id,
-        // Enrich with course name from our map
         courseName: courseMap.get(a.course_id) || 'Unknown Course',
         status: (a.has_submitted_submissions ? 'COMPLETED' : 'NOT_STARTED') as AssignmentStatus,
     }));
     
-    // The app handles filtering and sorting, but we filter out assignments without a due date
-    // as they are typically not actionable in the same way.
     return allAssignments.filter(a => a.due_at);
 };
 
