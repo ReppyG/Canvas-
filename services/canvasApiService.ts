@@ -5,15 +5,16 @@ const formatCanvasUrl = (url: string): string => {
     if (!url) return '';
     let formattedUrl = url.trim();
 
-    if (!/^https?:\/\//i.test(formattedUrl)) {
-        formattedUrl = 'https://' + formattedUrl;
-    } else {
-        formattedUrl = formattedUrl.replace(/^http:\/\//i, 'https://');
-    }
-
-    if (formattedUrl.endsWith('/')) {
-        formattedUrl = formattedUrl.slice(0, -1);
-    }
+    // Remove http:// or https:// if present
+    formattedUrl = formattedUrl.replace(/^https?:\/\//, '');
+    
+    // Remove trailing slash
+    formattedUrl = formattedUrl.replace(/\/$/, '');
+    
+    // Remove any path segments (e.g., /login)
+    formattedUrl = formattedUrl.split('/')[0];
+    
+    // Ensure it's just the domain
     return formattedUrl;
 };
 
@@ -86,6 +87,15 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
 };
 
 export const testConnection = async (canvasUrl: string, token: string): Promise<void> => {
+    if (!canvasUrl || !canvasUrl.trim()) {
+        throw new Error('Canvas URL is required');
+    }
+    if (!token || !token.trim()) {
+        throw new Error('API token is required');
+    }
     const formattedUrl = formatCanvasUrl(canvasUrl);
+    if (!formattedUrl) {
+        throw new Error('Invalid Canvas URL format');
+    }
     await fetchFromCanvas('users/self', formattedUrl, token);
 };
