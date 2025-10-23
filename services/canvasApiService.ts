@@ -4,24 +4,38 @@ const formatCanvasUrl = (url: string): string => {
     if (!url) return '';
     let formattedUrl = url.trim();
 
+    // Ensure it starts with https://
     if (!/^https?:\/\//i.test(formattedUrl)) {
         formattedUrl = 'https://' + formattedUrl;
     }
 
     try {
-        // Use the URL constructor to reliably extract the origin (protocol + hostname).
-        // This automatically strips out any paths like /dashboard, /login, etc.,
-        // which is the root cause of the "Page Not Found" HTML error.
         const urlObject = new URL(formattedUrl);
-        return urlObject.origin;
-    } catch (error) {
-        console.error("Invalid URL provided, attempting fallback formatting:", formattedUrl, error);
-        // Fallback for malformed URLs that the constructor might reject
-        const parts = formattedUrl.split('/');
-        if (parts.length >= 3) {
-            return `${parts[0]}//${parts[2]}`;
+
+        // For official canvas domains, it's safe to assume the API is at the root.
+        // This strips paths like /login or /dashboard that users might copy.
+        if (urlObject.hostname.endsWith('.instructure.com')) {
+            return urlObject.origin;
         }
-        return formattedUrl; // Return as-is if fallback fails
+
+        // For custom domains (e.g., university.edu/canvas), we preserve the path.
+        // We reconstruct the URL without query params or hash.
+        let path = urlObject.pathname;
+        // Remove trailing slash from path if it's not the root path itself
+        if (path.length > 1 && path.endsWith('/')) {
+            path = path.slice(0, -1);
+        }
+        
+        return `${urlObject.origin}${path}`;
+
+    } catch (error) {
+        console.error("Invalid URL provided, using fallback formatting:", formattedUrl, error);
+        // Fallback for malformed URLs that the constructor might reject
+        let fallbackUrl = formattedUrl;
+        if (fallbackUrl.endsWith('/')) {
+            fallbackUrl = fallbackUrl.slice(0, -1);
+        }
+        return fallbackUrl;
     }
 };
 
