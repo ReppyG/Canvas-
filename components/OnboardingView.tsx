@@ -18,22 +18,19 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ onSave, onEnableSampleD
     const [testStatus, setTestStatus] = useState<TestStatus>('idle');
     const [testMessage, setTestMessage] = useState('');
 
-    const getFormattedUrl = () => {
-        let formattedUrl = canvasUrl.trim();
-        if (!formattedUrl) return '';
-
-        // Ensure it starts with https://, or force https if it's http
-        if (!/^https?:\/\//i.test(formattedUrl)) {
-            formattedUrl = 'https://' + formattedUrl;
-        } else {
-            formattedUrl = formattedUrl.replace(/^http:\/\//i, 'https://');
-        }
-
+    const cleanCanvasUrl = (url: string): string => {
+        let cleaned = url.trim();
+        // Remove protocol
+        cleaned = cleaned.replace(/^https?:\/\//, '');
         // Remove trailing slash
-        if (formattedUrl.endsWith('/')) {
-            formattedUrl = formattedUrl.slice(0, -1);
-        }
-        return formattedUrl;
+        cleaned = cleaned.replace(/\/$/, '');
+        // Remove any path segments
+        cleaned = cleaned.split('/')[0];
+        return cleaned;
+    };
+
+    const getFormattedUrl = () => {
+        return cleanCanvasUrl(canvasUrl);
     };
 
     const handleTestAndSave = async () => {
@@ -41,6 +38,9 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ onSave, onEnableSampleD
         setTestMessage('');
         try {
             const formattedUrl = getFormattedUrl();
+            if (!formattedUrl) {
+                throw new Error('Please enter a valid Canvas URL');
+            }
             await testConnection(formattedUrl, apiToken.trim());
             setTestStatus('success');
             setTestMessage('Success! Connecting to your dashboard...');
@@ -82,20 +82,39 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ onSave, onEnableSampleD
     const renderUrlStep = () => (
         <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center">Step 1: Enter your Canvas URL</h2>
-            <p className="mt-2 text-gray-600 dark:text-gray-400 text-center">This is the web address you use to log in to Canvas.</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-400 text-center">Just the domain name - we'll handle the rest!</p>
+            
+            <div className="mt-6 max-w-md mx-auto bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 text-sm">Examples:</h3>
+                <ul className="text-sm space-y-1 text-blue-800 dark:text-blue-200">
+                    <li>✅ <code className="bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded">yourschool.instructure.com</code></li>
+                    <li>✅ <code className="bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded">canvas.university.edu</code></li>
+                    <li>❌ <code className="bg-red-100 dark:bg-red-900 px-2 py-0.5 rounded line-through">https://yourschool.instructure.com</code></li>
+                </ul>
+            </div>
+
             <div className="mt-8 max-w-md mx-auto">
                 <input
-                    type="url"
+                    type="text"
                     value={canvasUrl}
                     onChange={(e) => setCanvasUrl(e.target.value)}
                     placeholder="yourschool.instructure.com"
                     className="w-full text-center text-lg bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-md py-3 px-4 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onKeyPress={(e) => e.key === 'Enter' && canvasUrl.trim() && setStep('token')}
+                    onKeyPress={(e) => {
+                        if (e.key === 'Enter' && canvasUrl.trim()) {
+                            setStep('token');
+                        }
+                    }}
                 />
+                {canvasUrl.trim() && (
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center">
+                        Will connect to: <code className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{getFormattedUrl()}</code>
+                    </p>
+                )}
                 <button
                     onClick={() => setStep('token')}
                     disabled={!canvasUrl.trim()}
-                    className="mt-4 w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                    className="mt-4 w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
                     Next
                 </button>
@@ -103,61 +122,68 @@ const OnboardingView: React.FC<OnboardingViewProps> = ({ onSave, onEnableSampleD
         </div>
     );
     
-    const renderTokenStep = () => (
-        <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center">Step 2: Generate an Access Token</h2>
-            <div className="mt-8 max-w-3xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                <div className="bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-6 text-sm text-gray-600 dark:text-gray-400">
-                    <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3 text-base">Instructions</h3>
-                    <ol className="list-decimal list-inside space-y-2">
-                        <li>
-                            Click the button below to open your Canvas settings in a new tab.
-                            <a
-                                href={`${getFormattedUrl()}/profile/settings`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-semibold rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                            >
-                                <ExternalLinkIcon className="w-4 h-4" />
-                                Go to Canvas Settings
-                            </a>
-                        </li>
-                        <li>Scroll down to <strong>Approved Integrations</strong> and click <strong>+ New Access Token</strong>.</li>
-                        <li>Give it a name (e.g., "Student Platform") and click <strong>Generate Token</strong>.</li>
-                        <li>Copy the token and paste it into the field on the right. <strong>It will only be shown once!</strong></li>
-                    </ol>
-                </div>
-                <div className="space-y-4">
-                    <input
-                        type="password"
-                        value={apiToken}
-                        onChange={(e) => { setApiToken(e.target.value); setTestStatus('idle'); }}
-                        placeholder="Paste your token here"
-                        className="w-full text-lg bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-md py-3 px-4 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                        onClick={handleTestAndSave}
-                        disabled={!apiToken.trim() || testStatus === 'testing'}
-                        className="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors flex items-center justify-center"
-                    >
-                        {testStatus === 'testing' && <Loader2Icon className="w-5 h-5 mr-2 animate-spin" />}
-                        {testStatus === 'testing' ? 'Connecting...' : 'Test & Save Connection'}
-                    </button>
-                    {testStatus === 'error' && (
-                        <div className="mt-4 p-3 rounded-md text-sm bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 flex items-start gap-2">
-                            <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0 mt-0.5"/>
-                            <span>{testMessage}</span>
-                        </div>
-                    )}
-                     {testStatus === 'success' && (
-                        <div className="mt-4 p-3 rounded-md text-sm bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200">
-                            {testMessage}
-                        </div>
-                    )}
+    const renderTokenStep = () => {
+        const formattedUrl = getFormattedUrl();
+        const canvasSettingsUrl = formattedUrl ? `https://${formattedUrl}/profile/settings` : '#';
+        
+        return (
+            <div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center">Step 2: Generate an Access Token</h2>
+                <div className="mt-8 max-w-3xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                    <div className="bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-6 text-sm text-gray-600 dark:text-gray-400">
+                        <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-3 text-base">Instructions</h3>
+                        <ol className="list-decimal list-inside space-y-2">
+                            <li>
+                                Click the button below to open your Canvas settings in a new tab.
+                                <a
+                                    href={canvasSettingsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-semibold rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                >
+                                    <ExternalLinkIcon className="w-4 h-4" />
+                                    Go to Canvas Settings
+                                </a>
+                            </li>
+                            <li>Scroll down to <strong>Approved Integrations</strong> and click <strong>+ New Access Token</strong>.</li>
+                            <li>Give it a name (e.g., "Student Platform") and click <strong>Generate Token</strong>.</li>
+                            <li>Copy the token and paste it into the field on the right. <strong>It will only be shown once!</strong></li>
+                        </ol>
+                    </div>
+                    <div className="space-y-4">
+                        <textarea
+                            value={apiToken}
+                            onChange={(e) => { 
+                                setApiToken(e.target.value); 
+                                setTestStatus('idle'); 
+                            }}
+                            placeholder="Paste your token here (it's long!)"
+                            className="w-full h-32 text-sm bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-md py-3 px-4 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-none"
+                        />
+                        <button
+                            onClick={handleTestAndSave}
+                            disabled={!apiToken.trim() || testStatus === 'testing'}
+                            className="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                        >
+                            {testStatus === 'testing' && <Loader2Icon className="w-5 h-5 mr-2 animate-spin" />}
+                            {testStatus === 'testing' ? 'Connecting...' : 'Test & Save Connection'}
+                        </button>
+                        {testStatus === 'error' && (
+                            <div className="mt-4 p-3 rounded-md text-sm bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 flex items-start gap-2">
+                                <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0 mt-0.5"/>
+                                <span>{testMessage}</span>
+                            </div>
+                        )}
+                        {testStatus === 'success' && (
+                            <div className="mt-4 p-3 rounded-md text-sm bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200">
+                                {testMessage}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     return (
         <div className="bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-800 dark:text-gray-200 p-4 flex items-center justify-center">
