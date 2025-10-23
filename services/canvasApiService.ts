@@ -1,3 +1,4 @@
+// services/canvasApiService.ts
 import { Course, Assignment, Settings, AssignmentStatus } from '../types';
 
 const formatCanvasUrl = (url: string): string => {
@@ -17,35 +18,27 @@ const formatCanvasUrl = (url: string): string => {
 };
 
 const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: string): Promise<any> => {
-    const fullUrl = `${canvasUrl}/api/v1/${endpoint}`;
+    // Use the proxy endpoint
+    const proxyUrl = '/api/canvas-proxy';
     
-    const response = await fetch(fullUrl, {
+    const response = await fetch(proxyUrl, {
+        method: 'POST',
         headers: { 
-            'Authorization': `Bearer ${token}`
-        }
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            canvasUrl,
+            endpoint,
+            token
+        })
     });
     
     if (!response.ok) {
-        const responseBody = await response.text();
-        let errorMessage = `Canvas API Error (${response.status})`;
-        try {
-            // Attempt to parse for a detailed error message from Canvas.
-            const errorData = JSON.parse(responseBody);
-            errorMessage += `: ${errorData?.errors?.[0]?.message || JSON.stringify(errorData)}`;
-        } catch (e) {
-             // If parsing fails, use the raw text.
-             errorMessage += `: ${responseBody.slice(0, 200)}`;
-        }
-        throw new Error(errorMessage);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Request failed with status ${response.status}`);
     }
     
-    // If the response was successful, parse the JSON body.
-    try {
-        return await response.json();
-    } catch (e) {
-        console.error("Failed to parse successful Canvas API response:", e);
-        throw new Error("Received an invalid response from the Canvas API.");
-    }
+    return await response.json();
 };
 
 export const getCourses = async (settings: Settings): Promise<Course[]> => {
