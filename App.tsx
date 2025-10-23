@@ -9,6 +9,7 @@ export default function App() {
   // --- Auth State ---
   const [token, setToken] = useState<string | null>(null);
   const [canvasUrl, setCanvasUrl] = useState<string | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false); // Prevents flash of login page
 
   // On app load, check localStorage for saved credentials
   useEffect(() => {
@@ -25,6 +26,7 @@ export default function App() {
         localStorage.removeItem('canvasAuth');
       }
     }
+    setIsAuthReady(true); // Finished checking auth
   }, []);
 
   // --- Auth Functions ---
@@ -42,6 +44,12 @@ export default function App() {
   };
 
   // --- Conditional Rendering ---
+  
+  // Don't show anything until we've checked localStorage
+  if (!isAuthReady) {
+    return null; // Or a loading spinner
+  }
+
   if (!token || !canvasUrl) {
     // Show login page if not logged in
     return <LoginPage onLogin={handleLogin} />;
@@ -60,6 +68,11 @@ function LoginPage({ onLogin }: { onLogin: (token: string, url: string) => void 
 
   const handleSubmit = () => {
     if (localToken && localUrl) {
+      // Basic check for a valid-looking URL
+      if (!localUrl.startsWith('http://') && !localUrl.startsWith('https://')) {
+        setError('Please enter a full URL (e.g., https://canvas.instructure.com)');
+        return;
+      }
       onLogin(localToken, localUrl);
     } else {
       setError('Please fill in both fields.');
@@ -164,17 +177,22 @@ function MainPage({ token, canvasUrl, onLogout }: { token: string; canvasUrl: st
       }
     } catch (err) {
       // This will show a client-side error (like network failure)
-      setError(`Request failed: ${err.message}`);
+      // Make sure err is an Error object
+      if (err instanceof Error) {
+        setError(`Request failed: ${err.message}`);
+      } else {
+        setError("An unknown request error occurred.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-8 md:p-24 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <main className="flex min-h-screen flex-col items-center p-8 md:p-24 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-1D00">
       <div className="w-full max-w-2xl">
         <div className="flex justify-between items-center mb-6 w-full">
-          <h1 className="text-4xl font-bold">Your Courses</h1>
+          <h1 className="text-4xl font-bold">Your Platform</h1>
           <button
             onClick={onLogout}
             className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
