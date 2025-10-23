@@ -1,6 +1,6 @@
 import React from 'react';
 import { Page, Settings } from '../types';
-import { HomeIcon, BookOpenIcon, ClipboardListIcon, BrainIcon, UsersIcon, LinkIcon, SettingsIcon, DocumentTextIcon } from './icons/Icons';
+import { HomeIcon, BookOpenIcon, ClipboardListIcon, CalendarIcon, BrainIcon, UsersIcon, LinkIcon, SettingsIcon, DocumentTextIcon } from './icons/Icons';
 import ThemeSwitcher from './ThemeSwitcher';
 
 interface SidebarProps {
@@ -14,6 +14,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, settings
     { page: Page.Dashboard, icon: <HomeIcon />, label: 'Dashboard' },
     { page: Page.Courses, icon: <BookOpenIcon />, label: 'Courses' },
     { page: Page.Assignments, icon: <ClipboardListIcon />, label: 'Assignments' },
+    { page: Page.Calendar, icon: <CalendarIcon />, label: 'Calendar' },
     { page: Page.AiTools, icon: <BrainIcon />, label: 'AI Tools' },
     { page: Page.Chat, icon: <UsersIcon />, label: 'Chat' },
     { page: Page.Notes, icon: <DocumentTextIcon />, label: 'Notes' },

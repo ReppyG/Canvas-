@@ -4,7 +4,6 @@ import * as apiService from '../services/canvasApiService';
 import * as mockService from '../services/canvasMockService';
 import { storage } from '../services/storageService';
 
-const SETTINGS_KEY = 'canvasAiAssistantSettings';
 const CANVAS_ASSIGNMENT_IDS_KEY = 'canvasAiAssistantAssignmentIds';
 
 type CanvasService = {
@@ -17,7 +16,7 @@ type MockCanvasService = {
     getAssignments: () => Promise<Assignment[]>;
 }
 
-export const useCanvasData = (enabled: boolean) => {
+export const useCanvasData = (settings: Settings | null, enabled: boolean) => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
@@ -31,8 +30,6 @@ export const useCanvasData = (enabled: boolean) => {
     try {
       setError(null);
       setNewAssignments([]);
-      
-      const settings = await storage.get<Settings>(SETTINGS_KEY);
       
       const useSampleData = settings?.sampleDataMode ?? false;
       
@@ -87,10 +84,10 @@ export const useCanvasData = (enabled: boolean) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [settings]);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !settings) {
       setLoading(false);
       setCourses([]);
       setAssignments([]);
@@ -101,7 +98,7 @@ export const useCanvasData = (enabled: boolean) => {
     }
     
     fetchData();
-  }, [enabled, fetchData]);
+  }, [enabled, settings, fetchData]);
 
   return { courses, assignments, calendarEvents, loading, error, newAssignments, connectionStatus, refetchData: fetchData };
 };

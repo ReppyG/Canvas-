@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Page, Assignment } from './types';
+import { Page, Assignment, CalendarEvent } from './types';
 import { useSettings } from './hooks/useSettings';
 import { useCanvasData } from './hooks/useCanvasData';
 import { useAssignmentStatus } from './hooks/useAssignmentStatus';
@@ -11,6 +11,7 @@ import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import CoursesView from './components/CoursesView';
 import AssignmentsView from './components/AssignmentsView';
+import CalendarView from './components/CalendarView';
 import AiToolsView from './components/AiToolsView';
 import ChatView from './components/ChatView';
 import NotesView from './components/NotesView';
@@ -27,7 +28,7 @@ const App: React.FC = () => {
     
     // Enable data fetching once settings are loaded. The hook will handle which service to use (live/mock).
     const dataEnabled = settings !== null && (isConfigured || settings.sampleDataMode);
-    const { courses, assignments, calendarEvents, loading, error, connectionStatus, refetchData } = useCanvasData(dataEnabled);
+    const { courses, assignments, calendarEvents, loading, error, connectionStatus, refetchData } = useCanvasData(settings, dataEnabled);
     const { assignmentsWithStatus, handleStatusChange } = useAssignmentStatus(assignments);
     
     const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
@@ -48,6 +49,13 @@ const App: React.FC = () => {
         setAssignmentsCourseFilter(assignment.course_id.toString());
         setHighlightedAssignmentId(assignment.id);
         setCurrentPage(Page.Assignments);
+    };
+    
+    const handleCalendarEventSelect = (calendarEvent: CalendarEvent) => {
+        const assignmentToSelect = assignments.find(a => a.id === calendarEvent.id);
+        if (assignmentToSelect) {
+            handleAssignmentSelect(assignmentToSelect);
+        }
     };
 
     const resetHighlightedAssignment = () => {
@@ -84,7 +92,9 @@ const App: React.FC = () => {
             case Page.Courses:
                 return <CoursesView courses={courses} onCourseClick={handleCourseClick} />;
             case Page.Assignments:
-                return <AssignmentsView assignments={assignmentsWithStatus} courses={courses} onStatusChange={handleStatusChange} initialCourseId={assignmentsCourseFilter} onNavigated={resetAssignmentsCourseFilter} highlightedAssignmentId={highlightedAssignmentId} onHighlightDone={resetHighlightedAssignment} />;
+                return <AssignmentsView assignments={assignmentsWithStatus} courses={courses} onStatusChange={handleStatusChange} initialCourseId={assignmentsCourseFilter} onNavigated={resetAssignmentsCourseFilter} highlightedAssignmentId={highlightedAssignmentId} onHighlightDone={resetHighlightedAssignment} settings={settings} />;
+            case Page.Calendar:
+                return <CalendarView calendarEvents={calendarEvents} onEventSelect={handleCalendarEventSelect} />;
             case Page.AiTools:
                 return <AiToolsView assignments={assignmentsWithStatus} courses={courses} />;
             case Page.Chat:

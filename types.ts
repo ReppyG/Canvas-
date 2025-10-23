@@ -121,6 +121,7 @@ export enum Page {
     Dashboard,
     Courses,
     Assignments,
+    Calendar,
     AiTools,
     Chat,
     Notes,

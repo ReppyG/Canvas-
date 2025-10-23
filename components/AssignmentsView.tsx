@@ -124,21 +124,20 @@ const AssignmentCard: React.FC<{
     onTutorClick: (assignment: Assignment) => void;
     onPlanClick: (assignment: Assignment) => void;
     onStatusChange: (assignmentId: number, status: AssignmentStatus) => void;
-}> = ({ assignment, course, onTutorClick, onPlanClick, onStatusChange }) => {
+    settings: Settings | null;
+}> = ({ assignment, course, onTutorClick, onPlanClick, onStatusChange, settings }) => {
     const [estimatedTime, setEstimatedTime] = useState('');
     const [isEstimatingTime, setIsEstimatingTime] = useState(false);
     const [canvasLink, setCanvasLink] = useState<string | null>(null);
 
     useEffect(() => {
-        const SETTINGS_KEY = 'canvasAiAssistantSettings';
-        const loadSettings = async () => {
-            const settings = await storage.get<Settings>(SETTINGS_KEY);
-            if (settings?.canvasUrl && assignment.course_id && assignment.id) {
-                setCanvasLink(`https://${settings.canvasUrl}/courses/${assignment.course_id}/assignments/${assignment.id}`);
-            }
-        };
-        loadSettings();
-    }, [assignment.course_id, assignment.id]);
+        if (settings?.canvasUrl && assignment.course_id && assignment.id) {
+            // The URL from settings is already correctly formatted.
+            setCanvasLink(`${settings.canvasUrl}/courses/${assignment.course_id}/assignments/${assignment.id}`);
+        } else {
+            setCanvasLink(null);
+        }
+    }, [settings, assignment.course_id, assignment.id]);
 
     const handleEstimateTime = useCallback(async (forceRefresh = false) => {
         setIsEstimatingTime(true);
@@ -206,15 +205,10 @@ const AssignmentCard: React.FC<{
                 </h4>
                 <span className="text-sm font-semibold text-blue-700 bg-blue-100 dark:text-blue-200 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">{assignment.points_possible} points</span>
             </div>
-            <button
-                onClick={() => onTutorClick(assignment)}
-                className="w-full text-left"
-            >
-                <div 
-                    className="prose prose-sm max-w-none text-gray-600 dark:text-gray-300 dark:prose-invert max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-colors cursor-pointer"
-                    dangerouslySetInnerHTML={{ __html: assignment.description || '<p>No description provided. Click here to ask the AI Tutor for help.</p>' }}
-                />
-            </button>
+            <div 
+                className="prose prose-sm max-w-none text-gray-600 dark:text-gray-300 dark:prose-invert max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md border border-gray-200 dark:border-gray-600"
+                dangerouslySetInnerHTML={{ __html: assignment.description || '<p>No description provided.</p>' }}
+            />
           </div>
           
           <div className="mt-4 flex flex-wrap gap-4 items-center justify-between">
@@ -250,9 +244,10 @@ interface AssignmentsViewProps {
   onNavigated: () => void;
   highlightedAssignmentId: number | null;
   onHighlightDone: () => void;
+  settings: Settings | null;
 }
 
-const AssignmentsView: React.FC<AssignmentsViewProps> = ({ courses, assignments, onStatusChange, initialCourseId, onNavigated, highlightedAssignmentId, onHighlightDone }) => {
+const AssignmentsView: React.FC<AssignmentsViewProps> = ({ courses, assignments, onStatusChange, initialCourseId, onNavigated, highlightedAssignmentId, onHighlightDone, settings }) => {
     const [selectedCourseId, setSelectedCourseId] = useState<string>(initialCourseId || 'all');
     const [tutoringAssignment, setTutoringAssignment] = useState<Assignment | null>(null);
     const [planningAssignment, setPlanningAssignment] = useState<Assignment | null>(null);
@@ -358,6 +353,7 @@ const AssignmentsView: React.FC<AssignmentsViewProps> = ({ courses, assignments,
                                    onTutorClick={setTutoringAssignment} 
                                    onPlanClick={setPlanningAssignment}
                                    onStatusChange={onStatusChange}
+                                   settings={settings}
                                />
                            </div>
                        )
