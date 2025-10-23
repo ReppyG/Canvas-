@@ -21,7 +21,32 @@ const CourseCard: React.FC<{ course: Course; onClick: () => void; }> = ({ course
 };
 
 
-const CoursesView: React.FC<{ courses: Course[]; onCourseClick: (courseId: number) => void; }> = ({ courses, onCourseClick }) => {
+interface CoursesViewProps {
+    courses: Course[];
+    onCourseClick: (courseId: number) => void;
+    connectionStatus: 'live' | 'sample' | 'error';
+}
+
+const CoursesView: React.FC<CoursesViewProps> = ({ courses, onCourseClick, connectionStatus }) => {
+    const renderEmptyState = () => {
+        if (connectionStatus === 'live') {
+            return (
+                <div className="text-center py-20 bg-white dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Connection Successful, No Courses Found</h3>
+                    <p className="mt-2 text-gray-500 dark:text-gray-400">We connected to your Canvas account but couldn't find any active courses.</p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">This might be because the term hasn't started or your API token has limited permissions.</p>
+                </div>
+            );
+        }
+        // Default message for sample data mode or errors
+        return (
+            <div className="text-center py-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <p className="text-gray-500 dark:text-gray-400">No courses to display.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">If you expect to see courses, please check your settings.</p>
+            </div>
+        );
+    };
+
     return (
         <div className="animate-fade-in">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Your Courses</h1>
@@ -32,10 +57,7 @@ const CoursesView: React.FC<{ courses: Course[]; onCourseClick: (courseId: numbe
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <p className="text-gray-500 dark:text-gray-400">No courses found.</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Connect to Canvas in Settings to see your courses.</p>
-                </div>
+                renderEmptyState()
             )}
         </div>
     );

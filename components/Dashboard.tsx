@@ -1,14 +1,33 @@
 import React from 'react';
-import { Assignment, CalendarEvent } from '../types';
+import { Assignment, CalendarEvent, Course } from '../types';
 import { format, isToday, isTomorrow, isWithinInterval, addDays } from 'date-fns';
+import { BookOpenIcon } from './icons/Icons';
 
 interface DashboardProps {
     assignments: Assignment[];
     calendarEvents: CalendarEvent[];
+    courses: Course[];
     onCourseClick: (courseId: number) => void;
+    connectionStatus: 'live' | 'sample' | 'error';
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ assignments, calendarEvents, onCourseClick }) => {
+const EmptyState: React.FC = () => (
+    <div className="text-center py-20 bg-white dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+        <BookOpenIcon className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" />
+        <h3 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Successfully Connected to Canvas</h3>
+        <p className="mt-2 text-gray-500 dark:text-gray-400">However, no active courses or assignments were found.</p>
+        <div className="mt-4 text-sm text-gray-500 dark:text-gray-400 max-w-2xl mx-auto space-y-1">
+            <p><strong>Possible Reasons:</strong></p>
+            <ul className="list-disc list-inside">
+                <li>The academic term may not have started yet.</li>
+                <li>Your API token may not have sufficient permissions to view course data.</li>
+                <li>There are no published courses available for your user.</li>
+            </ul>
+        </div>
+    </div>
+);
+
+const Dashboard: React.FC<DashboardProps> = ({ assignments, calendarEvents, courses, onCourseClick, connectionStatus }) => {
     
     const now = new Date();
     const urgentAssignments = assignments.filter(a => a.status !== 'COMPLETED' && a.due_at && (isToday(new Date(a.due_at)) || isTomorrow(new Date(a.due_at))));
@@ -19,6 +38,10 @@ const Dashboard: React.FC<DashboardProps> = ({ assignments, calendarEvents, onCo
         if (isTomorrow(date)) return 'Tomorrow';
         return format(date, 'MMM d');
     };
+
+    if (connectionStatus === 'live' && courses.length === 0) {
+        return <EmptyState />;
+    }
 
     return (
         <div className="animate-fade-in">

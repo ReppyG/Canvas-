@@ -88,9 +88,9 @@ const App: React.FC = () => {
     const renderPage = () => {
         switch (currentPage) {
             case Page.Dashboard:
-                return <Dashboard assignments={assignmentsWithStatus} calendarEvents={calendarEvents} onCourseClick={handleCourseClick} />;
+                return <Dashboard assignments={assignmentsWithStatus} calendarEvents={calendarEvents} onCourseClick={handleCourseClick} connectionStatus={connectionStatus} courses={courses} />;
             case Page.Courses:
-                return <CoursesView courses={courses} onCourseClick={handleCourseClick} />;
+                return <CoursesView courses={courses} onCourseClick={handleCourseClick} connectionStatus={connectionStatus} />;
             case Page.Assignments:
                 return <AssignmentsView assignments={assignmentsWithStatus} courses={courses} onStatusChange={handleStatusChange} initialCourseId={assignmentsCourseFilter} onNavigated={resetAssignmentsCourseFilter} highlightedAssignmentId={highlightedAssignmentId} onHighlightDone={resetHighlightedAssignment} settings={settings} />;
             case Page.Calendar:
@@ -106,7 +106,7 @@ const App: React.FC = () => {
             case Page.Settings:
                 return <SettingsView settings={settings} onSave={saveSettings} onClear={clearSettings} onEnableSampleDataMode={enableSampleDataMode} initialError={error} />;
             default:
-                return <Dashboard assignments={assignmentsWithStatus} calendarEvents={calendarEvents} onCourseClick={handleCourseClick} />;
+                return <Dashboard assignments={assignmentsWithStatus} calendarEvents={calendarEvents} onCourseClick={handleCourseClick} connectionStatus={connectionStatus} courses={courses} />;
         }
     };
 
