@@ -6,6 +6,7 @@ const allowedOrigins = [
   'https://canvas-git-main-asas-projects-75e8fd6e.vercel.app', // Your production site
   'http://localhost:3000', // For local development (optional)
   'http://localhost:5173', // For local Vite development (optional)
+  'https://canvas-puce-one.vercel.app',
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -79,3 +80,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
+
