@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { 
-    GoogleGenAI, 
-    GenerateContentResponse, 
-    FinishReason 
-} from '@google/genai';
+    GoogleGenerativeAI, 
+    GenerateContentResult,
+    HarmCategory,
+    HarmBlockThreshold
+} from '@google/generative-ai';
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
@@ -100,33 +101,29 @@ function sanitizeInput(input: string): string {
 }
 
 /**
- * Safely extracts text from a Gemini response,
- * preventing crashes on safety blocks or empty responses.
- *
- * 💡 FIXED: Now uses the .text PROPERTY, not the .text() function.
+ * Safely extracts text from a Gemini response
  */
-function getSafeResponseText(response: GenerateContentResponse): string {
+function getSafeResponseText(response: GenerateContentResult): string {
     try {
-        if (!response.candidates || response.candidates.length === 0) {
+        if (!response.response) {
+            console.warn('Gemini response had no response object.');
+            return '[No response from AI]';
+        }
+
+        const candidates = response.response.candidates;
+        if (!candidates || candidates.length === 0) {
             console.warn('Gemini response had no candidates.');
             return '[No response from AI]';
         }
 
-        const finishReason = response.candidates[0].finishReason;
-        if (
-            finishReason === FinishReason.SAFETY ||
-            finishReason === FinishReason.RECITATION ||
-            finishReason === FinishReason.OTHER
-        ) {
+        const finishReason = candidates[0].finishReason;
+        if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
             console.warn(`Gemini generation stopped for reason: ${finishReason}`);
             return `[Content generation blocked: ${finishReason}]`;
         }
 
-        // 💡 THE FIX: Access the .text property (which can be undefined)
-        // and provide a fallback.
-        const text = response.text; // This was the original error TS18048
-        
-        return text ?? '[No text in response]'; // Handle undefined/null
+        const text = response.response.text();
+        return text || '[No text in response]';
 
     } catch (e) {
         console.error('Error in getSafeResponseText:', e);
@@ -185,7 +182,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const { action, payload } = req.body;
     
-    // 💡 FIXED: 'apiKey' definition is restored here
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         console.error('GEMINI_API_KEY not configured');
@@ -195,10 +191,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     
     try {
-        const { GoogleGenAI } = await import('@google/genai');
-        
-        // 💡 FIXED: Pass the 'apiKey' variable correctly
-        const client = new GoogleGenAI({ apiKey });
+        const genAI = new GoogleGenerativeAI(apiKey);
         
         let result: any;
         
@@ -208,10 +201,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const { prompt } = payload;
                     const sanitizedPrompt = sanitizeInput(prompt);
                     
-                    const genAIResponse = await client.models.generateContent({
-                        model: 'gemini-2.5-flash',
-                        contents: sanitizedPrompt,
-                    });
+                    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+                    const genAIResponse = await model.generateContent(sanitizedPrompt);
                     
                     result = { text: getSafeResponseText(genAIResponse) };
                 }
@@ -219,20 +210,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 
             case 'summarizeDocument':
                 {
-                    const { content, enableThinking } = payload;
+                    const { content } = payload;
                     const sanitizedContent = sanitizeInput(content);
                     
-                    const config: any = {};
-                    if (enableThinking) {
-                        config.thinkingConfig = { thinkingBudget: 32768 };
-                    }
-                    
-                   // This is CORRECT
-                    const genAIResponse = await client.models.generateContent({
-                        model: 'gemini-2.5-pro',
-                        contents: `Summarize this document concisely:\n\n${sanitizedContent}`,
-                        config,
-                    });
+                    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+                    const genAIResponse = await model.generateContent(
+                        `Summarize this document concisely:\n\n${sanitizedContent}`
+                    );
                     
                     result = { text: getSafeResponseText(genAIResponse) };
                 }
@@ -240,19 +224,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 
             case 'generateNotes':
                 {
-                    const { content, enableThinking } = payload;
+                    const { content } = payload;
                     const sanitizedContent = sanitizeInput(content);
                     
-                    const config: any = {};
-                    if (enableThinking) {
-                        config.thinkingConfig = { thinkingBudget: 32768 };
-                    }
-                    
-                    const genAIResponse = await client.models.generateContent({
-                        model: 'gemini-2.5-pro',
-                        contents: `Create a structured study guide from this text:\n\n${sanitizedContent}`,
-                        config,
-                    });
+                    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+                    const genAIResponse = await model.generateContent(
+                        `Create a structured study guide from this text:\n\n${sanitizedContent}`
+                    );
                     
                     result = { text: getSafeResponseText(genAIResponse) };
                 }
@@ -262,10 +240,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 {
                     const { assignmentName, description, points } = payload;
                     
-                    const genAIResponse = await client.models.generateContent({
-                        model: 'gemini-flash-lite-latest',
-                        contents: `Estimate time to complete this assignment. Respond with just the estimate (e.g., "2-3 hours"):\nName: ${assignmentName}\nDescription: ${description}\nPoints: ${points}`,
-                    });
+                    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+                    const genAIResponse = await model.generateContent(
+                        `Estimate time to complete this assignment. Respond with just the estimate (e.g., "2-3 hours"):\nName: ${assignmentName}\nDescription: ${description}\nPoints: ${points}`
+                    );
                     
                     result = { text: getSafeResponseText(genAIResponse).trim() };
                 }
@@ -276,38 +254,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const { prompt } = payload;
                     const sanitizedPrompt = sanitizeInput(prompt);
                     
-                    const genAIResponse = await client.models.generateContent({
-                        model: 'gemini-2.5-flash',
-                        contents: sanitizedPrompt,
-                        config: {
-                            tools: [{ googleSearch: {} }, { googleMaps: {} }],
-                        },
+                    const model = genAI.getGenerativeModel({ 
+                        model: 'gemini-2.0-flash-exp',
+                        tools: [{ googleSearchRetrieval: {} }]
                     });
                     
+                    const genAIResponse = await model.generateContent(sanitizedPrompt);
                     const text = getSafeResponseText(genAIResponse);
-                    const groundingChunks = genAIResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
                     
-                    const sources = groundingChunks
-                        .map((chunk: any) => {
-                            if (chunk.web) return { 
-                                type: 'web', 
-                                uri: chunk.web.uri || '', 
-                                title: chunk.web.title || 'Untitled' 
-                            };
-                            if (chunk.maps) return { 
-                                type: 'map', 
-                                uri: chunk.maps.uri || '', 
-                                title: chunk.maps.title || 'Untitled Place' 
-                            };
-                            return null;
-                        })
-                        .filter((s: any) => s && s.uri);
+                    // Extract grounding metadata if available
+                    const groundingMetadata = genAIResponse.response?.candidates?.[0]?.groundingMetadata;
+                    const sources: any[] = [];
                     
-                    const uniqueSources = Array.from(
-                        new Map(sources.map((s: any) => [s.uri, s])).values()
-                    );
+                    if (groundingMetadata?.groundingChunks) {
+                        groundingMetadata.groundingChunks.forEach((chunk: any) => {
+                            if (chunk.web) {
+                                sources.push({
+                                    type: 'web',
+                                    uri: chunk.web.uri || '',
+                                    title: chunk.web.title || 'Untitled'
+                                });
+                            }
+                        });
+                    }
                     
-                    result = { text, sources: uniqueSources };
+                    result = { text, sources };
                 }
                 break;
                 
@@ -321,12 +292,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error('Gemini API error:', error);
         
         if (error instanceof Error) {
-            if (error.message.includes('API key')) {
+            if (error.message.includes('API key') || error.message.includes('API_KEY')) {
                 return res.status(500).json({ 
                     error: 'AI service authentication failed' 
                 });
             }
-            if (error.message.includes('RESOURCE_EXHAUSTED')) {
+            if (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('quota')) {
                 return res.status(429).json({ 
                     error: 'AI service rate limit exceeded. Please try again later.' 
                 });
@@ -334,7 +305,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         return res.status(500).json({ 
-            error: 'An error occurred while processing your request' 
+            error: 'An error occurred while processing your request',
+            details: error instanceof Error ? error.message : 'Unknown error'
         });
     }
 }
