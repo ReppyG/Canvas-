@@ -16,7 +16,7 @@ export default function Home() {
   // --- Handle Button Click ---
   const getMyCourses = async () => {
     setCourses(null);
-    setError('');
+    setError(Request failed: ${err.message});
     setIsLoading(true);
 
     // This is your API's URL.
@@ -43,7 +43,7 @@ export default function Home() {
         setCourses(data);
       } else {
         console.error('API Error:', data.error);
-        setError(data.error);
+       setError(Request failed: ${err.message});
       }
     } catch (err) {
       console.error('Failed to fetch:', err);
