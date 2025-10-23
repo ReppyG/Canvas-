@@ -6,14 +6,23 @@ const formatCanvasUrl = (url: string): string => {
 
     if (!/^https?:\/\//i.test(formattedUrl)) {
         formattedUrl = 'https://' + formattedUrl;
-    } else {
-        formattedUrl = formattedUrl.replace(/^http:\/\//i, 'https://');
     }
 
-    if (formattedUrl.endsWith('/')) {
-        formattedUrl = formattedUrl.slice(0, -1);
+    try {
+        // Use the URL constructor to reliably extract the origin (protocol + hostname).
+        // This automatically strips out any paths like /dashboard, /login, etc.,
+        // which is the root cause of the "Page Not Found" HTML error.
+        const urlObject = new URL(formattedUrl);
+        return urlObject.origin;
+    } catch (error) {
+        console.error("Invalid URL provided, attempting fallback formatting:", formattedUrl, error);
+        // Fallback for malformed URLs that the constructor might reject
+        const parts = formattedUrl.split('/');
+        if (parts.length >= 3) {
+            return `${parts[0]}//${parts[2]}`;
+        }
+        return formattedUrl; // Return as-is if fallback fails
     }
-    return formattedUrl;
 };
 
 // This function is now responsible for calling our own backend proxy, not Canvas directly.
@@ -42,7 +51,7 @@ const fetchFromProxy = async (endpoint: string, canvasUrl: string, token: string
             const errorData = JSON.parse(responseBody);
             errorMessage = errorData.error || responseBody;
         } catch (e) {
-             // If parsing fails, use the raw text.
+             // If parsing fails (e.g., Canvas returned an HTML error page), use the raw text.
              errorMessage = responseBody.slice(0, 500);
         }
         throw new Error(errorMessage);

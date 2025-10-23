@@ -57,13 +57,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         const responseBody = await canvasResponse.text();
+        const contentType = canvasResponse.headers.get('Content-Type') || 'application/json';
 
         // Pass through Canvas's status code and headers for content type
-        res.setHeader('Content-Type', canvasResponse.headers.get('Content-Type') || 'application/json');
+        res.setHeader('Content-Type', contentType);
         
         // Check if the response from Canvas was not OK.
         if (!canvasResponse.ok) {
-            // Attempt to parse the error from Canvas and send it back
+             // If the error response is HTML (like a 404 page), send it back as the error message.
+            if (contentType.includes('text/html')) {
+                 return res.status(canvasResponse.status).json({ error: `Canvas API Error: Received an HTML error page instead of data. Please check your Canvas URL.` });
+            }
+            // Attempt to parse a JSON error from Canvas and send it back
             try {
                 const errorJson = JSON.parse(responseBody);
                 return res.status(canvasResponse.status).json({ error: `Canvas API Error: ${errorJson?.errors?.[0]?.message || responseBody}` });
