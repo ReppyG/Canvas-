@@ -1,75 +1,85 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// --- THIS IS THE SECURITY FIX ---
-// List of websites *allowed* to call this API.
-const allowedOrigins = [
-  'https://canvas-git-main-asas-projects-75e8fd6e.vercel.app', // Your production site
-  'http://localhost:3000', // For local development (if you use it)
-  'http://localhost:5173', // For local Vite development (if you use it)
-];
+// Define the list of allowed origins.
+// In production, Vercel sets the VERCEL_URL environment variable.
+const allowedOrigins = process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : [];
+
+// For local development, add localhost origins.
+// The `vite` dev script in package.json runs on port 5173 by default.
+if (process.env.NODE_ENV !== 'production') {
+    allowedOrigins.push('http://localhost:5173');
+    allowedOrigins.push('http://localhost:3000'); // Common alternative
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // --- Secure CORS Handling ---
-  const origin = req.headers.origin;
+    const origin = req.headers.origin;
 
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else if (req.method !== 'OPTIONS') {
-    // Block requests from unknown origins that aren't preflight
-    return res.status(403).json({ error: 'Origin not allowed' });
-  }
-  
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Content-Type, Authorization'
-  );
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  // --- Handle POST requests ---
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed, must be POST' });
-  }
-
-  try {
-    const { canvasUrl, endpoint, token } = req.body;
-
-    if (!canvasUrl || !endpoint || !token) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: canvasUrl, endpoint, or token' 
-      });
+    // Set CORS headers based on the origin of the request
+    if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
     }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'X-CSRF-Token, X-Requested-With, Accept, Content-Type, Authorization'
+    );
 
-    const fullUrl = `${canvasUrl}/api/v1/${endpoint}`;
+    // Handle preflight (OPTIONS) requests
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
     
-    const response = await fetch(fullUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`, // Use the token from the user
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(response.status).json({ 
-        error: `Canvas API Error: ${errorText}` 
-      });
+    if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const data = await response.json();
-    return res.status(200).json(data);
+    try {
+        const { canvasUrl, endpoint, token } = req.body;
 
-  } catch (error) {
-    console.error('Proxy error:', error);
-    return res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'Internal server error' 
-    });
-  }
+        if (!canvasUrl || !endpoint || !token) {
+            return res.status(400).json({
+                error: 'Missing required fields: canvasUrl, endpoint, or token'
+            });
+        }
+
+        // Build the full Canvas API URL
+        const fullUrl = `${canvasUrl}/api/v1/${endpoint}`;
+
+        const canvasResponse = await fetch(fullUrl, {
+            method: 'GET', // The proxy always makes a GET request to Canvas in this design
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const responseBody = await canvasResponse.text();
+
+        // Pass through Canvas's status code and headers for content type
+        res.setHeader('Content-Type', canvasResponse.headers.get('Content-Type') || 'application/json');
+        
+        // Check if the response from Canvas was not OK.
+        if (!canvasResponse.ok) {
+            // Attempt to parse the error from Canvas and send it back
+            try {
+                const errorJson = JSON.parse(responseBody);
+                return res.status(canvasResponse.status).json({ error: `Canvas API Error: ${errorJson?.errors?.[0]?.message || responseBody}` });
+            } catch (e) {
+                // If the error response isn't JSON, send the raw text
+                return res.status(canvasResponse.status).json({ error: `Canvas API Error: ${responseBody}` });
+            }
+        }
+        
+        // Success: send the raw response body from Canvas.
+        return res.status(canvasResponse.status).send(responseBody);
+
+    } catch (error) {
+        console.error('Proxy internal error:', error);
+        return res.status(500).json({
+            error: error instanceof Error ? error.message : 'An internal server error occurred in the proxy.'
+        });
+    }
 }

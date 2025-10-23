@@ -1,45 +1,60 @@
-// services/canvasApiService.ts
 import { Course, Assignment, Settings, AssignmentStatus } from '../types';
 
 const formatCanvasUrl = (url: string): string => {
     if (!url) return '';
     let formattedUrl = url.trim();
 
-    // Remove http:// or https:// if present
-    formattedUrl = formattedUrl.replace(/^https?:\/\//, '');
-    
-    // Remove trailing slash
-    formattedUrl = formattedUrl.replace(/\/$/, '');
-    
-    // Remove any path segments (e.g., /login)
-    formattedUrl = formattedUrl.split('/')[0];
-    
-    // Return with https:// protocol
-    return `https://${formattedUrl}`;
+    if (!/^https?:\/\//i.test(formattedUrl)) {
+        formattedUrl = 'https://' + formattedUrl;
+    } else {
+        formattedUrl = formattedUrl.replace(/^http:\/\//i, 'https://');
+    }
+
+    if (formattedUrl.endsWith('/')) {
+        formattedUrl = formattedUrl.slice(0, -1);
+    }
+    return formattedUrl;
 };
 
-const fetchFromCanvas = async (endpoint: string, canvasUrl: string, token: string): Promise<any> => {
-    // Use the proxy endpoint
+// This function is now responsible for calling our own backend proxy, not Canvas directly.
+const fetchFromProxy = async (endpoint: string, canvasUrl: string, token: string): Promise<any> => {
+    // The proxy is located at /api/canvas-proxy, relative to the current domain.
     const proxyUrl = '/api/canvas-proxy';
-    
+
     const response = await fetch(proxyUrl, {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json'
+        headers: {
+            'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            canvasUrl,
-            endpoint,
-            token
-        })
+            canvasUrl: canvasUrl, // The base URL for the user's canvas instance
+            endpoint: endpoint,   // The specific API endpoint (e.g., 'courses')
+            token: token          // The user's API token
+        }),
     });
     
+    const responseBody = await response.text();
+
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Request failed with status ${response.status}`);
+        let errorMessage = `API Error (${response.status})`;
+        try {
+            // The proxy forwards a JSON object with an 'error' key.
+            const errorData = JSON.parse(responseBody);
+            errorMessage = errorData.error || responseBody;
+        } catch (e) {
+             // If parsing fails, use the raw text.
+             errorMessage = responseBody.slice(0, 500);
+        }
+        throw new Error(errorMessage);
     }
     
-    return await response.json();
+    // If the response was successful, parse the JSON body.
+    try {
+        return JSON.parse(responseBody);
+    } catch (e) {
+        console.error("Failed to parse successful response from proxy:", e);
+        throw new Error("Received an invalid response from the application proxy.");
+    }
 };
 
 export const getCourses = async (settings: Settings): Promise<Course[]> => {
@@ -47,9 +62,9 @@ export const getCourses = async (settings: Settings): Promise<Course[]> => {
     const canvasUrl = formatCanvasUrl(settings.canvasUrl);
     if (!canvasUrl || !apiToken) return [];
     
-    const coursesData: any[] = await fetchFromCanvas('courses?enrollment_state=active', canvasUrl, apiToken);
+    const coursesData: any[] = await fetchFromProxy('courses?enrollment_state=active&per_page=50', canvasUrl, apiToken);
     return coursesData
-        .filter(course => course.name)
+        .filter(course => course.name && !course.access_restricted_by_date)
         .map(course => ({
             id: course.id,
             name: course.name,
@@ -65,37 +80,32 @@ export const getAssignments = async (settings: Settings): Promise<Assignment[]> 
     const courses = await getCourses(settings);
     const courseMap = new Map(courses.map(course => [course.id, course.name]));
 
-    const assignmentsData = await fetchFromCanvas('assignments?per_page=100', canvasUrl, apiToken);
+    const assignmentsData = await fetchFromProxy('assignments?per_page=100&include[]=submission', canvasUrl, apiToken);
 
     if (!Array.isArray(assignmentsData)) {
         console.error("Expected an array of assignments from Canvas API but received:", assignmentsData);
         return [];
     }
     
-    const allAssignments: Assignment[] = assignmentsData.map((a: any) => ({
-        id: a.id,
-        name: a.name,
-        description: a.description,
-        due_at: a.due_at,
-        points_possible: a.points_possible,
-        course_id: a.course_id,
-        courseName: courseMap.get(a.course_id) || 'Unknown Course',
-        status: (a.has_submitted_submissions ? 'COMPLETED' : 'NOT_STARTED') as AssignmentStatus,
-    }));
+    const allAssignments: Assignment[] = assignmentsData
+        .filter(a => a.due_at && a.name && courseMap.has(a.course_id)) // Filter out assignments for courses we don't have
+        .map((a: any) => ({
+            id: a.id,
+            name: a.name,
+            description: a.description,
+            due_at: a.due_at,
+            points_possible: a.points_possible,
+            course_id: a.course_id,
+            courseName: courseMap.get(a.course_id) || 'Unknown Course',
+            // Use submission data to determine status, more reliable than has_submitted_submissions
+            status: (a.submission && a.submission.workflow_state !== 'unsubmitted') ? 'COMPLETED' : 'NOT_STARTED',
+        }));
     
-    return allAssignments.filter(a => a.due_at);
+    return allAssignments;
 };
 
 export const testConnection = async (canvasUrl: string, token: string): Promise<void> => {
-    if (!canvasUrl || !canvasUrl.trim()) {
-        throw new Error('Canvas URL is required');
-    }
-    if (!token || !token.trim()) {
-        throw new Error('API token is required');
-    }
     const formattedUrl = formatCanvasUrl(canvasUrl);
-    if (!formattedUrl) {
-        throw new Error('Invalid Canvas URL format');
-    }
-    await fetchFromCanvas('users/self', formattedUrl, token);
+    // Test connection by fetching self profile, a lightweight endpoint.
+    await fetchFromProxy('users/self', formattedUrl, token);
 };
