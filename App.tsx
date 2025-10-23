@@ -1,13 +1,133 @@
 // This file must be named App.tsx
-// All your page logic from before now lives in this component.
+// It now handles both login and the main app logic.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-// 'export default' lets index.tsx import this component
+// --- Main App Component ---
+// This component now decides which page to show
 export default function App() {
-  // --- State Variables ---
-  const [token, setToken] = useState('');
-  const [canvasUrl, setCanvasUrl] = useState('');
+  // --- Auth State ---
+  const [token, setToken] = useState<string | null>(null);
+  const [canvasUrl, setCanvasUrl] = useState<string | null>(null);
+
+  // On app load, check localStorage for saved credentials
+  useEffect(() => {
+    const storedData = localStorage.getItem('canvasAuth');
+    if (storedData) {
+      try {
+        const { token, canvasUrl } = JSON.parse(storedData);
+        if (token && canvasUrl) {
+          setToken(token);
+          setCanvasUrl(canvasUrl);
+        }
+      } catch (e) {
+        console.error("Failed to parse auth data", e);
+        localStorage.removeItem('canvasAuth');
+      }
+    }
+  }, []);
+
+  // --- Auth Functions ---
+  const handleLogin = (token: string, url: string) => {
+    const authData = JSON.stringify({ token, canvasUrl: url });
+    localStorage.setItem('canvasAuth', authData);
+    setToken(token);
+    setCanvasUrl(url);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('canvasAuth');
+    setToken(null);
+    setCanvasUrl(null);
+  };
+
+  // --- Conditional Rendering ---
+  if (!token || !canvasUrl) {
+    // Show login page if not logged in
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  // Show main app page if logged in
+  return <MainPage token={token} canvasUrl={canvasUrl} onLogout={handleLogout} />;
+}
+
+// --- Internal Component: LoginPage ---
+// This component is only for logging in
+function LoginPage({ onLogin }: { onLogin: (token: string, url: string) => void }) {
+  const [localToken, setLocalToken] = useState('');
+  const [localUrl, setLocalUrl] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = () => {
+    if (localToken && localUrl) {
+      onLogin(localToken, localUrl);
+    } else {
+      setError('Please fill in both fields.');
+    }
+  };
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      <div className="w-full max-w-md">
+        <h1 className="text-4xl font-bold mb-6 text-center">Student Platform</h1>
+        <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 space-y-4">
+          {/* Canvas URL Input */}
+          <div>
+            <label 
+              htmlFor="canvas-url" 
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Canvas URL
+            </label>
+            <input
+              type="text"
+              id="canvas-url"
+              value={localUrl}
+              onChange={(e) => setLocalUrl(e.target.value)}
+              placeholder="e.g., https://canvas.instructure.com"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
+            />
+          </div>
+
+          {/* API Token Input */}
+          <div>
+            <label 
+              htmlFor="api-token" 
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Canvas API Token
+            </label>
+            <input
+              type="password"
+              id="api-token"
+              value={localToken}
+              onChange={(e) => setLocalToken(e.target.value)}
+              placeholder="Paste your token here (it's hidden)"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
+            />
+          </div>
+
+          {/* Login Button */}
+          <button
+            onClick={handleSubmit}
+            className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Login
+          </button>
+
+          {/* Show Error Message */}
+          {error && (
+            <p className="text-sm text-red-500 text-center">{error}</p>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+// --- Internal Component: MainPage ---
+// This is the main part of your app (the old App.tsx logic)
+function MainPage({ token, canvasUrl, onLogout }: { token: string; canvasUrl: string; onLogout: () => void; }) {
   const [courses, setCourses] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,9 +147,9 @@ export default function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          canvasUrl: canvasUrl,
-          endpoint: 'courses', // We are asking for the 'courses' endpoint
-          token: token,
+          canvasUrl: canvasUrl, // From props
+          endpoint: 'courses',  // We are asking for the 'courses' endpoint
+          token: token,         // From props
         }),
       });
 
@@ -39,69 +159,41 @@ export default function App() {
         // Success!
         setCourses(data);
       } else {
-        // This will show the error from the API (e.g., "Canvas API Error: ...")
+        // This will show the error from the API
         setError(data.error); 
       }
     } catch (err) {
-      // --- THIS IS THE FIX ---
-      // This will show the REAL error message on the page
-      // instead of just "Unknown error"
+      // This will show a client-side error (like network failure)
       setError(`Request failed: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // --- This is the HTML (JSX) for your page ---
   return (
     <main className="flex min-h-screen flex-col items-center p-8 md:p-24 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <div className="w-full max-w-2xl">
-        <h1 className="text-4xl font-bold mb-6 text-center">Student Platform</h1>
+        <div className="flex justify-between items-center mb-6 w-full">
+          <h1 className="text-4xl font-bold">Your Courses</h1>
+          <button
+            onClick={onLogout}
+            className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Logout
+          </button>
+        </div>
         
         <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 space-y-4">
-          {/* Canvas URL Input */}
-          <div>
-            <label 
-              htmlFor="canvas-url" 
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-              Canvas URL
-            </label>
-            <input
-              type="text"
-              id="canvas-url"
-              value={canvasUrl}
-              onChange={(e) => setCanvasUrl(e.target.value)}
-              placeholder="e.g., https://canvas.instructure.com"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
-            />
-          </div>
-
-          {/* API Token Input */}
-          <div>
-            <label 
-              htmlFor="api-token" 
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-              Canvas API Token
-            </label>
-            <input
-              type="password"
-              id="api-token"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Paste your token here (it's hidden)"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
-            />
-          </div>
-
+          <p className="text-gray-700 dark:text-gray-300">
+            You are logged in. Click the button to fetch your courses from Canvas.
+          </p>
           {/* Fetch Button */}
           <button
             onClick={getMyCourses}
             disabled={isLoading} 
             className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
           >
-            {isLoading ? 'Loading...' : 'Get My Courses'}
+            {isLoading ? 'Loading...' : 'Fetch My Courses'}
           </button>
         </div>
 
@@ -129,3 +221,4 @@ export default function App() {
     </main>
   );
 }
+
