@@ -13,15 +13,9 @@
       }
     }
   ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "env": {
     "VITE_FIREBASE_API_KEY": "@firebase-api-key",
@@ -32,10 +26,6 @@
     "VITE_FIREBASE_APP_ID": "@firebase-app-id",
     "VITE_FIREBASE_MEASUREMENT_ID": "@firebase-measurement-id"
   },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+  "cleanUrls": true,
+  "trailingSlash": false
 }
