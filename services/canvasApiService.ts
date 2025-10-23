@@ -71,9 +71,10 @@ export const getCourses = async (settings: Settings): Promise<Course[]> => {
     // This is the correct, student-friendly endpoint to get all enrollments.
     const enrollmentsData: any[] = await fetchFromProxy('users/self/enrollments?state[]=active&include[]=course&per_page=50', canvasUrl, apiToken);
     
-    // Filter for active student enrollments and ensure the course object is valid
+    // DEFINITIVE FIX: Removed the faulty `access_restricted_by_date` filter.
+    // The API's `state[]=active` is the correct source of truth.
     return enrollmentsData
-        .filter(enrollment => enrollment.type === 'StudentEnrollment' && enrollment.course && enrollment.course.name && !enrollment.course.access_restricted_by_date)
+        .filter(enrollment => enrollment.type === 'StudentEnrollment' && enrollment.course && enrollment.course.name)
         .map(enrollment => ({
             id: enrollment.course.id,
             name: enrollment.course.name,
