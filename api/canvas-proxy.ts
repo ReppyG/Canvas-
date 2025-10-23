@@ -1,34 +1,37 @@
 // api/canvas-proxy.ts
-import fetch from 'node-fetch'; // or native fetch if using Node 18+
-import type { VercelRequest, VercelResponse } from '@vercel/node'; // optional types only
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Enable CORS
+  // This lets your app talk to this function from the browser
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    'X-CSRF-Token, X-Requested-With, Accept, Content-Type, Authorization'
   );
 
-  // Handle preflight request
+  // Handle "preflight" requests (browsers do this automatically)
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
   }
 
   try {
+    // Get the data from your app
     const { canvasUrl, endpoint, token } = req.body;
 
+    // Make sure all required info is there
     if (!canvasUrl || !endpoint || !token) {
       return res.status(400).json({ 
         error: 'Missing required fields: canvasUrl, endpoint, or token' 
       });
     }
 
+    // Build the full Canvas URL
     const fullUrl = `${canvasUrl}/api/v1/${endpoint}`;
     
+    // Send the request to Canvas
     const response = await fetch(fullUrl, {
       method: 'GET',
       headers: {
@@ -37,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
 
+    // Check if Canvas responded with an error
     if (!response.ok) {
       const errorText = await response.text();
       return res.status(response.status).json({ 
@@ -44,6 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    // Success! Send the data back to your app
     const data = await response.json();
     return res.status(200).json(data);
 
@@ -54,4 +59,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
-
