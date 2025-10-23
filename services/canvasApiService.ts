@@ -1,4 +1,4 @@
-import { Course, Assignment, Settings, AssignmentStatus } from '../types';
+import { Course, Assignment, Settings } from '../types';
 
 const formatCanvasUrl = (url: string): string => {
     if (!url) return '';
@@ -11,31 +11,14 @@ const formatCanvasUrl = (url: string): string => {
 
     try {
         const urlObject = new URL(formattedUrl);
-
-        // For official canvas domains, it's safe to assume the API is at the root.
-        // This strips paths like /login or /dashboard that users might copy.
-        if (urlObject.hostname.endsWith('.instructure.com')) {
-            return urlObject.origin;
-        }
-
-        // For custom domains (e.g., university.edu/canvas), we preserve the path.
-        // We reconstruct the URL without query params or hash.
-        let path = urlObject.pathname;
-        // Remove trailing slash from path if it's not the root path itself
-        if (path.length > 1 && path.endsWith('/')) {
-            path = path.slice(0, -1);
-        }
-        
-        return `${urlObject.origin}${path}`;
-
+        // The API base is almost always the origin (e.g., https://school.instructure.com).
+        // This is the most reliable method and avoids errors from complex path stripping.
+        return urlObject.origin;
     } catch (error) {
-        console.error("Invalid URL provided, using fallback formatting:", formattedUrl, error);
-        // Fallback for malformed URLs that the constructor might reject
-        let fallbackUrl = formattedUrl;
-        if (fallbackUrl.endsWith('/')) {
-            fallbackUrl = fallbackUrl.slice(0, -1);
-        }
-        return fallbackUrl;
+        console.error("Invalid URL provided for formatting:", formattedUrl, error);
+        // If the URL is invalid, the API call will fail, which is the correct behavior.
+        // Return the malformed URL so the error message might provide a hint.
+        return formattedUrl;
     }
 };
 
