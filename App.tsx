@@ -229,7 +229,7 @@ function MainPage({ token, canvasUrl, onLogout }: { token: string; canvasUrl: st
         <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 space-y-4">
           <p className="text-gray-700 dark:text-gray-300">
             You are logged in. Click the button to fetch your courses from Canvas.
-          </all>
+          </p>
           {/* Fetch Button */}
           <button
             onClick={getMyCourses}
