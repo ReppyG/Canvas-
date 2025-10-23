@@ -5,7 +5,10 @@ import { db } from '../services/firebaseService';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import { UsersIcon, SendIcon, PlusIcon, ClipboardCopyIcon, CheckIcon } from './icons/Icons';
-import { format, formatRelative, parseISO } from 'date-fns';
+// Fix: Changed date-fns imports to use direct paths to resolve module resolution errors.
+import format from 'date-fns/format';
+import formatRelative from 'date-fns/formatRelative';
+import parseISO from 'date-fns/parseISO';
 
 const ChatView: React.FC = () => {
     const { user } = useAuth();
@@ -29,11 +32,10 @@ const ChatView: React.FC = () => {
     useEffect(() => {
         if (!myId) return;
         
-        // This query fetches the latest message for every conversation the user is in.
-        // It requires a composite index on (participants, timestamp) in Firestore.
+        // This query fetches every conversation the user is in. Sorting is handled client-side
+        // to avoid the need for a composite index in Firestore, making it more robust.
         const q = db.collection('chats')
-            .where('participants', 'array-contains', myId)
-            .orderBy('timestamp', 'desc');
+            .where('participants', 'array-contains', myId);
 
         const unsubscribe = q.onSnapshot((querySnapshot) => {
             const convos: UserChatMessage[] = [];
@@ -47,6 +49,8 @@ const ChatView: React.FC = () => {
                     timestamp: (data.timestamp as firebase.firestore.Timestamp)?.toDate().toISOString() || new Date().toISOString(),
                 });
             });
+            // Sort conversations by timestamp descending on the client
+            convos.sort((a, b) => parseISO(b.timestamp).getTime() - parseISO(a.timestamp).getTime());
             setAllConversations(convos);
         });
 
@@ -89,7 +93,8 @@ const ChatView: React.FC = () => {
         
         const uniquePeers = new Map<string, ConversationSummary>();
         
-        // Process conversations from Firestore first
+        // Process conversations from Firestore first. Since `allConversations` is now pre-sorted,
+        // the first entry we see for a peer is the latest one.
         allConversations.forEach(msg => {
             const peerId = msg.senderId === myId ? msg.recipientId : msg.senderId;
             if (!uniquePeers.has(peerId)) {

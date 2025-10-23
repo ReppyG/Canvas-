@@ -1,7 +1,13 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { SearchIcon, ExclamationTriangleIcon, FilterIcon, ClockIcon, SettingsIcon, LogOutIcon } from './icons/Icons';
 import { Assignment, Course, AssignmentStatus, Page } from '../types';
-import { format, isToday, startOfWeek, endOfWeek, addWeeks, isWithinInterval } from 'date-fns';
+// Fix: Changed date-fns imports to use direct paths to resolve module resolution errors.
+import format from 'date-fns/format';
+import isToday from 'date-fns/isToday';
+import startOfWeek from 'date-fns/startOfWeek';
+import endOfWeek from 'date-fns/endOfWeek';
+import addWeeks from 'date-fns/addWeeks';
+import isWithinInterval from 'date-fns/isWithinInterval';
 import { useAuth } from '../hooks/useAuth';
 
 interface HeaderProps {
