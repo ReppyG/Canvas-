@@ -3,15 +3,6 @@
 
 import React, { useState, useEffect } from 'react';
 
-// --- TypeScript Interface for a Course ---
-// This helps us manage the course data
-interface Course {
-  id: number;
-  name?: string; // Name is optional, as some courses don't have it
-  course_code?: string;
-  access_restricted_by_date?: boolean;
-}
-
 // --- Main App Component ---
 // This component now decides which page to show
 export default function App() {
@@ -150,8 +141,8 @@ function LoginPage({ onLogin }: { onLogin: (token: string, url: string) => void 
 // --- Internal Component: MainPage ---
 // This is the main part of your app (the old App.tsx logic)
 function MainPage({ token, canvasUrl, onLogout }: { token: string; canvasUrl: string; onLogout: () => void; }) {
-  // --- UPDATED STATE ---
-  const [courses, setCourses] = useState<Course[] | null>(null); // Use the Course interface
+  // --- STATE (Reverted) ---
+  const [courses, setCourses] = useState(null); // Will store the raw JSON
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -178,18 +169,9 @@ function MainPage({ token, canvasUrl, onLogout }: { token: string; canvasUrl: st
       
       if (response.ok) {
         // If successful, we expect JSON
-        const data: Course[] = await response.json();
+        const data = await response.json();
+        setCourses(data); // Set the raw JSON data
         
-        // --- THIS IS THE UPDATE ---
-        // Filter out courses that are restricted or don't have a name
-        const validCourses = data.filter(course => course.name && !course.access_restricted_by_date);
-        setCourses(validCourses);
-        
-        if (validCourses.length === 0) {
-          setError("No active, unrestricted courses found.");
-        }
-        // --- END OF UPDATE ---
-
       } else {
         // If it failed, it might be a JSON error from our API
         // or an HTML error page from Vercel (like a 404 or 500)
@@ -240,7 +222,7 @@ function MainPage({ token, canvasUrl, onLogout }: { token: string; canvasUrl: st
           </button>
         </div>
 
-        {/* --- Results Area (UPDATED) --- */}
+        {/* --- Results Area (Reverted) --- */}
         <div className="mt-8">
           {/* Show Error Message */}
           {error && (
@@ -251,19 +233,12 @@ function MainPage({ token, canvasUrl, onLogout }: { token: string; canvasUrl: st
           )}
 
           {/* Show Success Message (Courses) */}
-          {courses && courses.length > 0 && (
+          {courses && (
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4">
               <h2 className="text-2xl font-semibold mb-4">Your Courses</h2>
-              <ul className="space-y-4">
-                {courses.map(course => (
-                  <li key={course.id} className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg shadow transition-transform hover:scale-[1.02]">
-                    <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400">{course.name}</h3>
-                    {course.course_code && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{course.course_code}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <pre className="text-sm bg-gray-100 dark:bg-gray-700 p-4 rounded overflow-x-auto">
+                {JSON.stringify(courses, null, 2)}
+              </pre>
             </div>
           )}
         </div>
