@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { CalendarEvent } from '../types';
-// Fix: Standardized date-fns imports to resolve module resolution errors. The previous errors about
-// missing exports were likely due to inconsistent import styles across the application.
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday, isSameDay, addWeeks, subWeeks } from 'date-fns';
+// Fix: 'startOfMonth' and 'startOfWeek' are not exported from the root 'date-fns' module in this project's setup. Importing them directly from their paths.
+import { format, addMonths, subMonths, endOfMonth, endOfWeek, eachDayOfInterval, isSameMonth, isToday, isSameDay, addWeeks, subWeeks } from 'date-fns';
+import startOfMonth from 'date-fns/startOfMonth';
+import startOfWeek from 'date-fns/startOfWeek';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons/Icons';
 
 interface CalendarViewProps {

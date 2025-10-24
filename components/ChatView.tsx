@@ -5,8 +5,9 @@ import { db } from '../services/firebaseService';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import { UsersIcon, SendIcon, PlusIcon, ClipboardCopyIcon, CheckIcon } from './icons/Icons';
-// Fix: Changed date-fns imports to use named imports from the root package to resolve module resolution errors.
-import { format, formatRelative, parseISO } from 'date-fns';
+// Fix: 'parseISO' is not exported from the root 'date-fns' module in this project's setup. Importing it directly from its path.
+import { format, formatRelative } from 'date-fns';
+import parseISO from 'date-fns/parseISO';
 
 const ChatView: React.FC = () => {
     const { user } = useAuth();

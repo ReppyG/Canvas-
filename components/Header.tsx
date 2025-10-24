@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { SearchIcon, ExclamationTriangleIcon, FilterIcon, ClockIcon, SettingsIcon, LogOutIcon } from './icons/Icons';
 import { Assignment, Course, AssignmentStatus, Page } from '../types';
-// Fix: Changed date-fns imports to use named imports from the root package to resolve module resolution errors.
-import { format, isToday, startOfWeek, endOfWeek, addWeeks, isWithinInterval } from 'date-fns';
+// Fix: 'startOfWeek' is not exported from the root 'date-fns' module in this project's setup. Importing it directly from its path.
+import { format, isToday, endOfWeek, addWeeks, isWithinInterval } from 'date-fns';
+import startOfWeek from 'date-fns/startOfWeek';
 import { useAuth } from '../hooks/useAuth';
 
 interface HeaderProps {

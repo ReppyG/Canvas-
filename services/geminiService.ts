@@ -456,8 +456,8 @@ export const editImage = async (base64Data: string, mimeType: string, prompt: st
 };
 
 // --- Video Generation Service ---
-// Fix for line 459: Add generic type argument to 'Operation' to resolve type error.
-export const generateVideo = async (prompt: string, aspectRatio: '16:9' | '9:16', image?: { data: string, mimeType: string }): Promise<Operation<any, any>> => {
+// Fix: Updated 'Operation' generic type to match SDK which expects one type argument.
+export const generateVideo = async (prompt: string, aspectRatio: '16:9' | '9:16', image?: { data: string, mimeType: string }): Promise<Operation<any>> => {
     const client = getClient(process.env.API_KEY); // Must create new client for fresh key
     try {
         const operation = await client.models.generateVideos({
@@ -476,8 +476,8 @@ export const generateVideo = async (prompt: string, aspectRatio: '16:9' | '9:16'
     }
 };
 
-// Fix for line 478: Add generic type argument to 'Operation' to resolve type error.
-export const getVideosOperation = async (operation: Operation<any, any>): Promise<Operation<any, any>> => {
+// Fix: Updated 'Operation' generic type to match SDK which expects one type argument.
+export const getVideosOperation = async (operation: Operation<any>): Promise<Operation<any>> => {
     const client = getClient(process.env.API_KEY); // Must create new client for fresh key
     try {
         const updatedOperation = await client.operations.getVideosOperation({ operation });
