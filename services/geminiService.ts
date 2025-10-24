@@ -47,7 +47,7 @@ let ai: any = null;
 
 async function getClient(): Promise<any> {
     const { GoogleGenAI } = await getGeminiSDK();
-    const key = process.env.API_KEY;
+    const key = process.env.VITE_API_KEY;
     if (!key) {
         throw new Error("Gemini API key is not configured for client-side features.");
     }
