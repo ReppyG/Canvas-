@@ -266,8 +266,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const groundingMetadata = genAIResponse.response?.candidates?.[0]?.groundingMetadata;
                     const sources: any[] = [];
                     
-                    if (groundingMetadata?.groundingChunks) {
-                        groundingMetadata.groundingChunks.forEach((chunk: any) => {
+                    if (groundingMetadata?.groundingChuncks) {
+                        groundingMetadata.groundingChuncks.forEach((chunk: any) => {
                             if (chunk.web) {
                                 sources.push({
                                     type: 'web',
