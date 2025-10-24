@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AiTutorMessage, Course, Assignment } from '../types';
 import { createGlobalAssistantChat, generateGroundedText } from '../services/geminiService';
-import { Chat } from '@google/genai';
+import type { ChatSession } from '@google/generative-ai';
 import { SparklesIcon, XIcon, GlobeIcon, ExternalLinkIcon, MapIcon } from './icons/Icons';
 
 interface GlobalAiChatProps {
@@ -31,14 +31,29 @@ const GlobalAiChat: React.FC<GlobalAiChatProps> = ({ isOpen, onClose, courses, a
         return `CONTEXT:\nCourses: ${JSON.stringify(courseSummary)}\nAssignments: ${JSON.stringify(assignmentSummary)}`;
     }, [courses, assignments]);
 
-    const chat = useMemo(() => {
-        if (enableGrounding) return null; // Use one-shot calls for grounding
-        try {
-          return createGlobalAssistantChat(context);
-        } catch(e) {
-          console.error(e);
-          return null;
+    const [chat, setChat] = useState<ChatSession | null>(null);
+
+    useEffect(() => {
+        if (enableGrounding) {
+            setChat(null); // Use one-shot calls for grounding
+            return;
         }
+        let isMounted = true;
+        createGlobalAssistantChat(context)
+            .then((chatSession) => {
+                if (isMounted) {
+                    setChat(chatSession);
+                }
+            })
+            .catch((e) => {
+                console.error("Failed to create chat:", e);
+                if (isMounted) {
+                    setChat(null);
+                }
+            });
+        return () => {
+            isMounted = false;
+        };
     }, [context, enableGrounding]);
 
     useEffect(() => {
@@ -72,8 +87,9 @@ const GlobalAiChat: React.FC<GlobalAiChatProps> = ({ isOpen, onClose, courses, a
                  setMessages(prev => [...prev, modelResponse]);
             } else {
                 if (!chat) throw new Error("AI Assistant is not available.");
-                const response = await chat.sendMessage({ message: currentInput });
-                const modelResponse: AiTutorMessage = { role: 'model', text: response.text };
+                const result = await chat.sendMessage(currentInput);
+                const response = await result.response;
+                const modelResponse: AiTutorMessage = { role: 'model', text: response.text() };
                 setMessages(prev => [...prev, modelResponse]);
             }
         } catch (error) {

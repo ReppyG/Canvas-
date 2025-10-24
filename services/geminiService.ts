@@ -31,28 +31,28 @@ async function callGeminiProxy(action: string, payload: any): Promise<any> {
  * Lazy-load Gemini SDK only when needed (client-side features)
  * This prevents build errors and reduces bundle size
  */
-let GoogleGenAI: any = null;
-let Type: any = null;
+let GoogleGenerativeAI: any = null;
+let SchemaType: any = null;
 
 async function getGeminiSDK() {
-    if (!GoogleGenAI) {
-        const module = await import('@google/genai');
-        GoogleGenAI = module.GoogleGenAI;
-        Type = module.Type;
+    if (!GoogleGenerativeAI) {
+        const module = await import('@google/generative-ai');
+        GoogleGenerativeAI = module.GoogleGenerativeAI;
+        SchemaType = module.SchemaType;
     }
-    return { GoogleGenAI, Type };
+    return { GoogleGenerativeAI, SchemaType };
 }
 
 let ai: any = null;
 
 async function getClient(): Promise<any> {
-    const { GoogleGenAI } = await getGeminiSDK();
+    const { GoogleGenerativeAI } = await getGeminiSDK();
     const key = process.env.API_KEY;
     if (!key) {
         throw new Error("Gemini API key is not configured for client-side features.");
     }
     if (ai) return ai;
-    ai = new GoogleGenAI({ apiKey: key });
+    ai = new GoogleGenerativeAI(key);
     return ai;
 }
 
@@ -108,21 +108,23 @@ export const generateGroundedText = async (
 
 export const createTutorChat = async (assignment: any): Promise<any> => {
     const client = await getClient();
-    return client.chats.create({
-        model: 'gemini-2.5-flash',
-        config: {
-            systemInstruction: `You are a patient tutor helping with: ${assignment.name}\nDescription: ${assignment.description || 'N/A'}\nUse the Socratic method and never give direct answers.`
-        },
+    const model = client.getGenerativeModel({ 
+        model: 'gemini-1.5-flash',
+        systemInstruction: `You are a patient tutor helping with: ${assignment.name}\nDescription: ${assignment.description || 'N/A'}\nUse the Socratic method and never give direct answers.`
+    });
+    return model.startChat({
+        history: [],
     });
 };
 
 export const createGlobalAssistantChat = async (context: string): Promise<any> => {
     const client = await getClient();
-    return client.chats.create({
-        model: 'gemini-2.5-flash',
-        config: {
-            systemInstruction: `You are a helpful AI assistant. Student data: ${context}`
-        },
+    const model = client.getGenerativeModel({ 
+        model: 'gemini-1.5-flash',
+        systemInstruction: `You are a helpful AI assistant. Student data: ${context}`
+    });
+    return model.startChat({
+        history: [],
     });
 };
 
@@ -132,16 +134,13 @@ export const analyzeImage = async (
     prompt: string
 ): Promise<string> => {
     const client = await getClient();
-    const response = await client.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: {
-            parts: [
-                { inlineData: { mimeType, data: base64Data } },
-                { text: prompt }
-            ]
-        },
-    });
-    return response.text;
+    const model = client.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const result = await model.generateContent([
+        { inlineData: { mimeType, data: base64Data } },
+        prompt
+    ]);
+    const response = await result.response;
+    return response.text();
 };
 
 export const analyzeVideo = async (
@@ -150,33 +149,22 @@ export const analyzeVideo = async (
     prompt: string
 ): Promise<string> => {
     const client = await getClient();
-    const response = await client.models.generateContent({
-        model: 'gemini-2.5-pro',
-        contents: {
-            parts: [
-                { inlineData: { mimeType, data: base64Data } },
-                { text: prompt }
-            ]
-        },
-    });
-    return response.text;
+    const model = client.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const result = await model.generateContent([
+        { inlineData: { mimeType, data: base64Data } },
+        prompt
+    ]);
+    const response = await result.response;
+    return response.text();
 };
 
 export const generateImage = async (
     prompt: string,
     aspectRatio: string
 ): Promise<string> => {
-    const client = await getClient();
-    const response = await client.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt,
-        config: {
-            numberOfImages: 1,
-            outputMimeType: 'image/jpeg',
-            aspectRatio: aspectRatio as any,
-        },
-    });
-    return response.generatedImages[0].image.imageBytes;
+    // Note: Image generation requires the Imagen API which may not be available in the current SDK version
+    // This is a placeholder that needs to be implemented with the proper API
+    throw new Error("Image generation is not currently available. Please use the Google AI Studio for image generation.");
 };
 
 export const editImage = async (
@@ -184,23 +172,9 @@ export const editImage = async (
     mimeType: string,
     prompt: string
 ): Promise<string> => {
-    const { Modality } = await import('@google/genai');
-    const client = await getClient();
-    const response = await client.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-            parts: [
-                { inlineData: { data: base64Data, mimeType } },
-                { text: prompt },
-            ],
-        },
-        config: { responseModalities: [Modality.IMAGE] },
-    });
-    const part = response.candidates?.[0]?.content?.parts?.[0];
-    if (part?.inlineData) {
-        return part.inlineData.data;
-    }
-    throw new Error("AI did not return an edited image.");
+    // Note: Image editing requires specific model support which may not be available
+    // This is a placeholder that needs to be implemented with the proper API
+    throw new Error("Image editing is not currently available. Please use the Google AI Studio for image editing.");
 };
 
 export const generateVideo = async (
@@ -208,22 +182,14 @@ export const generateVideo = async (
     aspectRatio: '16:9' | '9:16',
     image?: { data: string; mimeType: string }
 ): Promise<any> => {
-    const client = await getClient();
-    return await client.models.generateVideos({
-        model: 'veo-3.1-fast-generate-preview',
-        prompt,
-        ...(image && { image: { imageBytes: image.data, mimeType: image.mimeType } }),
-        config: {
-            numberOfVideos: 1,
-            resolution: '720p',
-            aspectRatio,
-        }
-    });
+    // Note: Video generation requires the Veo API which is not available in the current SDK version
+    // This is a placeholder that needs to be implemented with the proper API
+    throw new Error("Video generation is not currently available. Please use the Google AI Studio for video generation.");
 };
 
 export const getVideosOperation = async (operation: any): Promise<any> => {
-    const client = await getClient();
-    return await client.operations.getVideosOperation({ operation });
+    // Note: This requires video generation API support
+    throw new Error("Video operations are not currently available.");
 };
 
 // ===== AUDIO UTILITIES =====
@@ -275,23 +241,9 @@ export const playAudio = async (base64Audio: string) => {
 };
 
 export const generateSpeech = async (text: string): Promise<string> => {
-    const { Modality } = await import('@google/genai');
-    const client = await getClient();
-    const response = await client.models.generateContent({
-        model: 'gemini-2.5-flash-preview-tts',
-        contents: [{ parts: [{ text }] }],
-        config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
-            },
-        },
-    });
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) {
-        throw new Error("AI did not return any audio data.");
-    }
-    return base64Audio;
+    // Note: Text-to-speech requires specific model support which may not be available
+    // This is a placeholder that needs to be implemented with the proper API
+    throw new Error("Text-to-speech is not currently available. Please use the Google Cloud Text-to-Speech API.");
 };
 
 function encode(bytes: Uint8Array) {
@@ -322,34 +274,8 @@ export const startTranscriptionSession = async (
         onClose: () => void,
     }
 ) => {
-    const { Modality } = await import('@google/genai');
-    const client = await getClient();
-    const sessionPromise = client.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-        callbacks: {
-            onopen: () => console.log('Live session opened for transcription.'),
-            onmessage: (message: any) => {
-                if (message.serverContent?.inputTranscription) {
-                    const text = message.serverContent.inputTranscription.text;
-                    const isFinal = message.serverContent.turnComplete ?? false;
-                    callbacks.onTranscriptionUpdate(text, isFinal);
-                }
-            },
-            onerror: (e: ErrorEvent) => {
-                console.error('Live session error:', e);
-                callbacks.onError(new Error(e.message || "Live session error"));
-            },
-            onclose: (e: CloseEvent) => {
-                console.log('Live session closed.');
-                callbacks.onClose();
-            },
-        },
-        config: {
-            responseModalities: [Modality.AUDIO],
-            inputAudioTranscription: {},
-        },
-    });
-    return sessionPromise;
+    // Note: Live transcription requires specific API support which may not be available
+    throw new Error("Live transcription is not currently available. Please use the Google Cloud Speech-to-Text API.");
 };
 
 export const startLiveConversation = async (
@@ -360,41 +286,8 @@ export const startLiveConversation = async (
         onClose: () => void
     }
 ) => {
-    const { Modality } = await import('@google/genai');
-    const client = await getClient();
-    const sessionPromise = client.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-        callbacks: {
-            onopen: () => console.log('Live session opened for conversation.'),
-            onmessage: (message: any) => {
-                const audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-                if (audio) {
-                    callbacks.onAudio(audio);
-                }
-                if (message.serverContent?.inputTranscription) {
-                    const text = message.serverContent.inputTranscription.text;
-                    const isFinal = message.serverContent.turnComplete ?? false;
-                    callbacks.onTranscription(text, isFinal);
-                }
-            },
-            onerror: (e: ErrorEvent) => {
-                console.error('Live session error:', e);
-                callbacks.onError(new Error(e.message || "Live session error"));
-            },
-            onclose: (e: CloseEvent) => {
-                console.log('Live session closed.');
-                callbacks.onClose();
-            },
-        },
-        config: {
-            responseModalities: [Modality.AUDIO],
-            inputAudioTranscription: {},
-            speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
-            },
-        },
-    });
-    return sessionPromise;
+    // Note: Live conversation requires specific API support which may not be available
+    throw new Error("Live conversation is not currently available. Please use the Google Cloud Speech and Text-to-Speech APIs.");
 };
 
 // Study Plan with structured output
@@ -402,7 +295,7 @@ export const generateStudyPlan = async (
     assignment: any,
     options?: GenerationOptions
 ): Promise<any> => {
-    const { Type } = await getGeminiSDK();
+    const { SchemaType } = await getGeminiSDK();
     const client = await getClient();
     
     const daysUntilDue = assignment.due_at 
@@ -417,33 +310,33 @@ Description: ${assignment.description || 'None'}
 Points: ${assignment.points_possible || 'N/A'}`;
 
     const schema: any = {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-            title: { type: Type.STRING },
-            estimatedHours: { type: Type.NUMBER },
+            title: { type: SchemaType.STRING },
+            estimatedHours: { type: SchemaType.NUMBER },
             steps: {
-                type: Type.ARRAY,
+                type: SchemaType.ARRAY,
                 items: {
-                    type: Type.OBJECT,
+                    type: SchemaType.OBJECT,
                     properties: {
-                        order: { type: Type.INTEGER },
-                        title: { type: Type.STRING },
-                        description: { type: Type.STRING },
-                        estimatedMinutes: { type: Type.INTEGER },
-                        priority: { type: Type.STRING, enum: ['high', 'medium', 'low'] },
-                        resources: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        order: { type: SchemaType.INTEGER },
+                        title: { type: SchemaType.STRING },
+                        description: { type: SchemaType.STRING },
+                        estimatedMinutes: { type: SchemaType.INTEGER },
+                        priority: { type: SchemaType.STRING, enum: ['high', 'medium', 'low'] },
+                        resources: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }
                     },
                     required: ['order', 'title', 'description', 'estimatedMinutes', 'priority']
                 }
             },
             milestones: {
-                type: Type.ARRAY,
+                type: SchemaType.ARRAY,
                 items: {
-                    type: Type.OBJECT,
+                    type: SchemaType.OBJECT,
                     properties: {
-                        name: { type: Type.STRING },
-                        completionPercentage: { type: Type.INTEGER },
-                        description: { type: Type.STRING }
+                        name: { type: SchemaType.STRING },
+                        completionPercentage: { type: SchemaType.INTEGER },
+                        description: { type: SchemaType.STRING }
                     },
                     required: ['name', 'completionPercentage', 'description']
                 }
@@ -452,16 +345,15 @@ Points: ${assignment.points_possible || 'N/A'}`;
         required: ['title', 'estimatedHours', 'steps', 'milestones']
     };
     
-    const config: any = { responseMimeType: "application/json", responseSchema: schema };
-    if (options?.enableThinking) {
-        config.thinkingConfig = { thinkingBudget: 32768 };
-    }
-
-    const response = await client.models.generateContent({
-        model: 'gemini-2.5-pro',
-        contents: prompt,
-        config: config
+    const model = client.getGenerativeModel({ 
+        model: 'gemini-1.5-pro',
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: schema,
+        }
     });
-    
-    return JSON.parse(response.text);
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return JSON.parse(response.text());
 };

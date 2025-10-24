@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Course, Assignment, AiTutorMessage, Settings, AssignmentStatus } from '../types';
 import { format } from 'date-fns';
 import { estimateAssignmentTime, createTutorChat } from '../services/geminiService';
-import { Chat } from '@google/genai';
+import type { ChatSession } from '@google/generative-ai';
 import { SparklesIcon, XIcon, ClockIcon, DocumentTextIcon, ExternalLinkIcon } from './icons/Icons';
 import { storage } from '../services/storageService';
 import StudyPlanDialog from './StudyPlanDialog';
@@ -13,13 +13,25 @@ const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> =
     const [isLoading, setIsLoading] = useState(false);
     const [inputError, setInputError] = useState<string | null>(null);
     const [isShaking, setIsShaking] = useState(false);
-    const chat = useMemo(() => {
-        try {
-            return createTutorChat(assignment);
-        } catch (e) {
-            console.error(e);
-            return null;
-        }
+    const [chat, setChat] = useState<ChatSession | null>(null);
+    
+    useEffect(() => {
+        let isMounted = true;
+        createTutorChat(assignment)
+            .then((chatSession) => {
+                if (isMounted) {
+                    setChat(chatSession);
+                }
+            })
+            .catch((e) => {
+                console.error("Failed to create chat:", e);
+                if (isMounted) {
+                    setChat(null);
+                }
+            });
+        return () => {
+            isMounted = false;
+        };
     }, [assignment]);
     
     useEffect(() => {
@@ -52,8 +64,9 @@ const AiTutorModal: React.FC<{ assignment: Assignment; onClose: () => void; }> =
         setIsLoading(true);
 
         try {
-            const response = await chat.sendMessage({ message: input });
-            const modelResponse: AiTutorMessage = { role: 'model', text: response.text };
+            const result = await chat.sendMessage(input);
+            const response = await result.response;
+            const modelResponse: AiTutorMessage = { role: 'model', text: response.text() };
             setMessages(prev => [...prev, modelResponse]);
 
         } catch (error) {
