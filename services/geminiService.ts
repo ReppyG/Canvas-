@@ -13,25 +13,32 @@ const imageEditModel = 'gemini-2.5-flash-image';
 const ttsModel = 'gemini-2.5-flash-preview-tts';
 const liveModel = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
-function getClient(apiKey?: string): GoogleGenAI {
-    const key = apiKey || process.env.API_KEY;
+const ensureClient = (userSelectedKey: boolean = false): GoogleGenAI => {
+    const key = process.env.API_KEY;
+
     if (!key) {
-        throw new Error("Gemini API key is not configured. Please set the API_KEY environment variable.");
+        // This is a user-facing error that the UI will catch and display.
+        throw new Error("The Gemini API key has not been configured. Please visit Settings to set it up.");
     }
-    // For features requiring user-selected keys (like Veo), we create a new instance.
-    if (apiKey) {
+
+    // For features requiring a user-selected key (like Veo), we must create a fresh client instance
+    // to ensure the latest key from the selection dialog is used.
+    if (userSelectedKey) {
         return new GoogleGenAI({ apiKey: key });
     }
+
+    // For other features, we can reuse a singleton client for efficiency.
     if (ai) return ai;
     ai = new GoogleGenAI({ apiKey: key });
     return ai;
 }
 
+
 const handleApiError = (error: unknown) : never => {
     console.error("Error communicating with Gemini API:", error);
     if (error instanceof Error) {
         // Passthrough for our specific configuration error
-        if (error.message.startsWith("Gemini API key is not configured")) {
+        if (error.message.startsWith("The Gemini API key has not been configured")) {
             throw error;
         }
         if (error.message.includes('API key')) {
@@ -101,7 +108,7 @@ export const playAudio = async (base64Audio: string) => {
 };
 
 export const generateStudyPlan = async (assignment: Assignment, options?: GenerationOptions): Promise<StudyPlan> => {
-    const client = getClient();
+    const client = ensureClient();
     const daysUntilDue = assignment.due_at ? Math.ceil((new Date(assignment.due_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 'N/A';
 
     const prompt = `You are an expert academic advisor. Create a detailed study plan for this assignment:
@@ -167,7 +174,7 @@ Create a JSON study plan. Make it practical, actionable, and tailored to the tim
 };
 
 export const generateSummary = async (content: string, options?: GenerationOptions): Promise<Summary> => {
-    const client = getClient();
+    const client = ensureClient();
     const prompt = `You are an expert educator. Summarize this educational content in a structured way.
 Content to summarize:
 ${content}
@@ -222,7 +229,7 @@ Output ONLY a valid JSON object matching the provided schema.`;
 };
 
 export const getTutorResponse = async (history: ChatMessage[], newMessage: string): Promise<string> => {
-    const client = getClient();
+    const client = ensureClient();
     const chat = client.chats.create({
         model: chatModel,
         config: {
@@ -243,7 +250,7 @@ export const getTutorResponse = async (history: ChatMessage[], newMessage: strin
 };
 
 export const generateText = async (prompt: string): Promise<string> => {
-    const client = getClient();
+    const client = ensureClient();
     try {
         const response = await client.models.generateContent({
             model: fastModel,
@@ -256,7 +263,7 @@ export const generateText = async (prompt: string): Promise<string> => {
 };
 
 export const summarizeDocument = async (content: string, options?: GenerationOptions): Promise<string> => {
-    const client = getClient();
+    const client = ensureClient();
     const prompt = `Summarize this document concisely:\n\n${content}`;
     const config: any = {};
     if (options?.enableThinking) {
@@ -275,7 +282,7 @@ export const summarizeDocument = async (content: string, options?: GenerationOpt
 };
 
 export const generateNotesFromText = async (content: string, options?: GenerationOptions): Promise<string> => {
-    const client = getClient();
+    const client = ensureClient();
     const prompt = `You are an expert student. Create a structured study guide from the following text. Use markdown for formatting, including headings, bullet points, and bold text for key terms.
     Content to process:
     ${content}`;
@@ -296,7 +303,7 @@ export const generateNotesFromText = async (content: string, options?: Generatio
 };
 
 export const estimateAssignmentTime = async (assignment: Assignment): Promise<string> => {
-    const client = getClient();
+    const client = ensureClient();
     const prompt = `Based on the following assignment details, estimate the time required to complete it. Provide a concise estimate like "2-3 hours" or "45 minutes".
     Assignment: ${assignment.name}
     Description: ${assignment.description || 'No description provided.'}
@@ -314,7 +321,7 @@ export const estimateAssignmentTime = async (assignment: Assignment): Promise<st
 };
 
 export const createTutorChat = (assignment: Assignment): Chat => {
-    const client = getClient();
+    const client = ensureClient();
     const chat = client.chats.create({
         model: chatModel,
         config: {
@@ -328,7 +335,7 @@ export const createTutorChat = (assignment: Assignment): Chat => {
 };
 
 export const createGlobalAssistantChat = (context: string): Chat => {
-    const client = getClient();
+    const client = ensureClient();
     const chat = client.chats.create({
         model: chatModel,
         config: {
@@ -339,7 +346,7 @@ export const createGlobalAssistantChat = (context: string): Chat => {
 };
 
 export const generateGroundedText = async (fullPrompt: string): Promise<{ text: string, sources: GroundingSource[] }> => {
-    const client = getClient();
+    const client = ensureClient();
     try {
         const response = await client.models.generateContent({
             model: "gemini-2.5-flash",
@@ -369,7 +376,7 @@ export const generateGroundedText = async (fullPrompt: string): Promise<{ text: 
 };
 
 export const analyzeImage = async (base64Data: string, mimeType: string, prompt: string): Promise<string> => {
-    const client = getClient();
+    const client = ensureClient();
     try {
         const imagePart = {
             inlineData: {
@@ -391,7 +398,7 @@ export const analyzeImage = async (base64Data: string, mimeType: string, prompt:
 };
 
 export const analyzeVideo = async (base64Data: string, mimeType: string, prompt: string): Promise<string> => {
-    const client = getClient();
+    const client = ensureClient();
     try {
         const videoPart = {
             inlineData: {
@@ -414,7 +421,7 @@ export const analyzeVideo = async (base64Data: string, mimeType: string, prompt:
 
 // --- Image Generation Service ---
 export const generateImage = async (prompt: string, aspectRatio: string): Promise<string> => {
-    const client = getClient();
+    const client = ensureClient();
     try {
         const response = await client.models.generateImages({
             model: imageGenModel,
@@ -433,7 +440,7 @@ export const generateImage = async (prompt: string, aspectRatio: string): Promis
 
 // --- Image Editing Service ---
 export const editImage = async (base64Data: string, mimeType: string, prompt: string): Promise<string> => {
-    const client = getClient();
+    const client = ensureClient();
     try {
         const response = await client.models.generateContent({
             model: imageEditModel,
@@ -458,7 +465,7 @@ export const editImage = async (base64Data: string, mimeType: string, prompt: st
 // --- Video Generation Service ---
 // Fix: Updated 'Operation' generic type to match SDK which expects one type argument.
 export const generateVideo = async (prompt: string, aspectRatio: '16:9' | '9:16', image?: { data: string, mimeType: string }): Promise<Operation<any>> => {
-    const client = getClient(process.env.API_KEY); // Must create new client for fresh key
+    const client = ensureClient(true); // Must create new client for fresh key
     try {
         const operation = await client.models.generateVideos({
             model: videoGenModel,
@@ -478,7 +485,7 @@ export const generateVideo = async (prompt: string, aspectRatio: '16:9' | '9:16'
 
 // Fix: Updated 'Operation' generic type to match SDK which expects one type argument.
 export const getVideosOperation = async (operation: Operation<any>): Promise<Operation<any>> => {
-    const client = getClient(process.env.API_KEY); // Must create new client for fresh key
+    const client = ensureClient(true); // Must create new client for fresh key
     try {
         const updatedOperation = await client.operations.getVideosOperation({ operation });
         return updatedOperation;
@@ -489,7 +496,7 @@ export const getVideosOperation = async (operation: Operation<any>): Promise<Ope
 
 // --- TTS Service ---
 export const generateSpeech = async (text: string): Promise<string> => {
-    const client = getClient();
+    const client = ensureClient();
     try {
         const response = await client.models.generateContent({
             model: ttsModel,
@@ -540,7 +547,7 @@ export const startTranscriptionSession = async (
         onClose: () => void,
     }
 ) => {
-    const client = getClient();
+    const client = ensureClient();
     try {
         const sessionPromise = client.live.connect({
             model: liveModel,
@@ -584,7 +591,7 @@ export const startLiveConversation = async (
         onClose: () => void
     }
 ) => {
-    const client = getClient();
+    const client = ensureClient();
     try {
         const sessionPromise = client.live.connect({
             model: liveModel,
