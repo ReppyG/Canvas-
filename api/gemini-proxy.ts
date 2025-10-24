@@ -182,9 +182,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const { action, payload } = req.body;
     
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
-        console.error('GEMINI_API_KEY not configured');
+        console.error('VITE_GEMINI_API_KEY not configured');
         return res.status(500).json({ 
             error: 'AI service not configured. Please contact support.' 
         });
@@ -292,7 +292,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error('Gemini API error:', error);
         
         if (error instanceof Error) {
-            if (error.message.includes('API key') || error.message.includes('API_KEY')) {
+            if (error.message.includes('API key') || error.message.includes('VITE_API_KEY')) {
                 return res.status(500).json({ 
                     error: 'AI service authentication failed' 
                 });
