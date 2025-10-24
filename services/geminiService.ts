@@ -108,21 +108,21 @@ export const generateGroundedText = async (
 
 export const createTutorChat = async (assignment: any): Promise<any> => {
     const client = await getClient();
-    return client.chats.create({
+       return client.models.startChat({
         model: 'gemini-2.5-flash',
-        config: {
-            systemInstruction: `You are a patient tutor helping with: ${assignment.name}\nDescription: ${assignment.description || 'N/A'}\nUse the Socratic method and never give direct answers.`
-        },
+        history: [],
+        systemInstruction: `You are a patient tutor helping with: ${assignment.name}\nDescription: ${assignment.description || 'N/A'}\nUse the Socratic method and never give direct answers.`,
     });
+
 };
 
 export const createGlobalAssistantChat = async (context: string): Promise<any> => {
     const client = await getClient();
-    return client.chats.create({
-        model: 'gemini-2.5-flash',
-        config: {
-            systemInstruction: `You are a helpful AI assistant. Student data: ${context}`
-        },
+        return client.chats.create({
+            model: 'gemini-2.5-flash',
+            config: {
+                systemInstruction: `You are a helpful AI assistant. Student data: ${context}`
+            },
     });
 };
 
