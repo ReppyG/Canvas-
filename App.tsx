@@ -115,7 +115,7 @@ const App: React.FC = () => {
             <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} settings={settings} />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Header assignments={assignmentsWithStatus} courses={courses} connectionStatus={connectionStatus} onAssignmentSelect={handleAssignmentSelect} onSetPage={setCurrentPage} />
-                <main className="flex-1 overflow-y-auto p-8 relative">
+                <main className="flex-1 overflow-y-auto p-8 relative flex flex-col">
                     {loading && connectionStatus === 'live' && settings && !settings.sampleDataMode ? (
                          <div className="absolute inset-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm flex items-center justify-center z-10">
                             <div className="text-center">

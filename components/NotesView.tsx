@@ -114,7 +114,7 @@ const NotesView: React.FC = () => {
     }
 
     return (
-        <div className="flex h-full animate-fade-in">
+        <div className="flex flex-1 animate-fade-in">
             {/* Notes List */}
             <div className="w-1/3 h-full flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">

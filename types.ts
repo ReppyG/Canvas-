@@ -1,8 +1,6 @@
-// ============================================================================
-// ENHANCED TYPE SYSTEM - ULTIMATE AI STUDY COMPANION
-// ============================================================================
+// This file defines the core data structures for the Student Platform application.
 
-// Existing types remain...
+// Canvas API related types
 export interface Course {
     id: number;
     name: string;
@@ -18,7 +16,7 @@ export interface Assignment {
     due_at: string | null;
     points_possible: number | null;
     course_id: number;
-    courseName: string;
+    courseName: string; // Enriched in the app
     status: AssignmentStatus;
 }
 
@@ -31,164 +29,7 @@ export interface CalendarEvent {
     courseName?: string;
 }
 
-// ============================================================================
-// ENHANCED CHAT SYSTEM
-// ============================================================================
-
-export interface ChatConversation {
-    id: string;
-    title: string;
-    type: 'personal' | 'group';
-    createdAt: string;
-    updatedAt: string;
-    lastMessage?: string;
-    isPinned: boolean;
-    category: 'general' | 'assignment' | 'study' | 'archived';
-    participants?: string[]; // For group chats
-    metadata?: {
-        assignmentId?: number;
-        courseId?: number;
-        tags?: string[];
-    };
-}
-
-export interface ChatMessage {
-    id: string;
-    conversationId: string;
-    senderId: string;
-    senderName?: string;
-    content: string;
-    timestamp: string;
-    type: 'text' | 'ai_response' | 'system' | 'file';
-    metadata?: {
-        sources?: GroundingSource[];
-        thinking?: string; // Deep thinking mode output
-        tokens?: number;
-        model?: string;
-    };
-    reactions?: {
-        userId: string;
-        emoji: string;
-    }[];
-    attachments?: {
-        type: 'image' | 'document' | 'link';
-        url: string;
-        name: string;
-    }[];
-}
-
-// ============================================================================
-// AI-GENERATED CONTENT STORAGE
-// ============================================================================
-
-export interface SavedAIContent {
-    id: string;
-    userId: string;
-    type: 'summary' | 'notes' | 'study_plan' | 'chat' | 'analysis';
-    title: string;
-    content: any; // Flexible for different content types
-    sourceType?: 'assignment' | 'document' | 'conversation';
-    sourceId?: string;
-    createdAt: string;
-    updatedAt: string;
-    tags: string[];
-    isFavorite: boolean;
-    metadata?: {
-        courseId?: number;
-        assignmentId?: number;
-        tokensUsed?: number;
-        model?: string;
-    };
-}
-
-// ============================================================================
-// KNOWLEDGE BASE SYSTEM
-// ============================================================================
-
-export interface KnowledgeEntry {
-    id: string;
-    userId: string;
-    title: string;
-    content: string;
-    type: 'concept' | 'formula' | 'definition' | 'example' | 'tip';
-    courseId?: number;
-    tags: string[];
-    embedding?: number[]; // For semantic search
-    createdAt: string;
-    updatedAt: string;
-    accessCount: number;
-    lastAccessed?: string;
-}
-
-// ============================================================================
-// AI CONTEXT & MEMORY
-// ============================================================================
-
-export interface AIContext {
-    userId: string;
-    conversationHistory: ChatMessage[];
-    userPreferences: {
-        learningStyle?: 'visual' | 'auditory' | 'reading' | 'kinesthetic';
-        communicationStyle?: 'concise' | 'detailed' | 'socratic';
-        difficultyLevel?: 'beginner' | 'intermediate' | 'advanced';
-        focusAreas?: string[];
-    };
-    knowledgeGraph: {
-        [concept: string]: {
-            masteryLevel: number; // 0-100
-            relatedConcepts: string[];
-            lastReviewed: string;
-        };
-    };
-    activeGoals: {
-        id: string;
-        description: string;
-        deadline?: string;
-        progress: number;
-    }[];
-}
-
-// ============================================================================
-// STUDY SESSION TRACKING
-// ============================================================================
-
-export interface StudySession {
-    id: string;
-    userId: string;
-    startTime: string;
-    endTime?: string;
-    duration?: number; // minutes
-    type: 'focus' | 'review' | 'practice' | 'ai_tutoring';
-    courseId?: number;
-    assignmentId?: number;
-    topics: string[];
-    effectiveness?: number; // 1-5 rating
-    notes?: string;
-    aiInteractions: number;
-}
-
-// ============================================================================
-// SMART NOTIFICATIONS
-// ============================================================================
-
-export interface SmartNotification {
-    id: string;
-    userId: string;
-    type: 'deadline' | 'recommendation' | 'achievement' | 'reminder';
-    title: string;
-    message: string;
-    priority: 'low' | 'medium' | 'high' | 'urgent';
-    createdAt: string;
-    scheduledFor?: string;
-    isRead: boolean;
-    actionUrl?: string;
-    metadata?: any;
-}
-
-// ============================================================================
-// AI STUDY PLAN (Enhanced)
-// ============================================================================
-
+// AI Study Plan types
 export interface StudyPlanStep {
     order: number;
     title: string;
@@ -196,39 +37,23 @@ export interface StudyPlanStep {
     estimatedMinutes: number;
     priority: 'high' | 'medium' | 'low';
     resources: string[];
-    completed: boolean;
-    completedAt?: string;
-    actualMinutes?: number;
-    difficulty?: number; // User feedback
+    completed: boolean; // For UI state
 }
 
 export interface StudyPlanMilestone {
     name: string;
     completionPercentage: number;
     description: string;
-    completed: boolean;
-    completedAt?: string;
 }
 
 export interface StudyPlan {
-    id: string;
-    userId: string;
-    assignmentId: number;
     title: string;
     estimatedHours: number;
-    actualHours?: number;
     steps: StudyPlanStep[];
     milestones: StudyPlanMilestone[];
-    createdAt: string;
-    startedAt?: string;
-    completedAt?: string;
-    effectiveness?: number; // User rating
 }
 
-// ============================================================================
-// SUMMARY (Enhanced)
-// ============================================================================
-
+// AI Summarizer types
 export interface SummaryKeyPoint {
     concept: string;
     explanation: string;
@@ -241,97 +66,57 @@ export interface SummaryDefinition {
 }
 
 export interface Summary {
-    id: string;
-    userId: string;
     title: string;
     mainTopics: string[];
     keyPoints: SummaryKeyPoint[];
     definitions: SummaryDefinition[];
     examples: string[];
     studyTips: string[];
-    createdAt: string;
-    sourceType?: string;
-    sourceId?: string;
 }
 
-// ============================================================================
-// AI CHAT TYPES (Enhanced)
-// ============================================================================
+// AI Tutor Chat types
+export interface ChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
 
 export interface GroundingSource {
-    type: 'web' | 'map' | 'document' | 'knowledge_base';
+    type: 'web' | 'map';
     uri: string;
     title: string;
-    relevance?: number;
 }
 
 export interface AiTutorMessage {
     role: 'user' | 'model';
     text: string;
     sources?: GroundingSource[];
-    thinking?: string;
-    timestamp?: string;
 }
 
-// ============================================================================
-// PROGRESS TRACKING
-// ============================================================================
-
-export interface UserProgress {
-    userId: string;
-    totalStudyTime: number; // minutes
-    assignmentsCompleted: number;
-    coursesActive: number;
-    aiInteractions: number;
-    knowledgeEntries: number;
-    currentStreak: number; // days
-    longestStreak: number;
-    achievements: Achievement[];
-    weeklyGoal?: number; // minutes
-    weeklyProgress: number;
-}
-
-export interface Achievement {
+// Note taking types
+export interface Note {
     id: string;
-    type: 'study_streak' | 'assignments' | 'ai_usage' | 'knowledge' | 'milestone';
     title: string;
-    description: string;
-    unlockedAt: string;
-    icon?: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
 }
 
-// ============================================================================
-// SETTINGS (Enhanced)
-// ============================================================================
-
-export interface Settings {
-    canvasUrl: string;
-    apiToken: string;
-    sampleDataMode: boolean;
-    aiPreferences: {
-        defaultModel: 'flash' | 'pro';
-        enableThinking: boolean;
-        enableWebSearch: boolean;
-        responseStyle: 'concise' | 'detailed' | 'balanced';
-        tutorPersonality: 'professional' | 'friendly' | 'motivational';
-    };
-    notificationPreferences: {
-        email: boolean;
-        push: boolean;
-        deadlineReminders: boolean;
-        studyReminders: boolean;
-        aiSuggestions: boolean;
-    };
-    privacySettings: {
-        saveConversations: boolean;
-        shareAnonymousData: boolean;
-    };
+// User-to-user Chat types
+export interface UserChatMessage {
+    id: string;
+    senderId: string;
+    recipientId: string;
+    text: string;
+    timestamp: string;
 }
 
-// ============================================================================
-// APP STATE
-// ============================================================================
+export interface ConversationSummary {
+    peerId: string;
+    lastMessage: string;
+    timestamp: string;
+}
 
+// App related types
 export enum Page {
     Dashboard,
     Courses,
@@ -341,38 +126,42 @@ export enum Page {
     Chat,
     Notes,
     Integrations,
-    Settings,
-    KnowledgeBase,
-    StudySessions,
-    Progress
+    Settings
 }
 
-// ============================================================================
-// WINDOW TYPES
-// ============================================================================
+export interface Settings {
+    canvasUrl: string;
+    apiToken: string;
+    sampleDataMode: boolean;
+}
 
+// Add aistudio to the window object for type safety
+// Fix: Define and use an explicit `AIStudio` interface to resolve conflicting global type declarations.
+
+// Fix for line 146: Moved AIStudio interface into `declare global` to resolve conflicting global type declarations error.
+// Fix: Add global type declarations for `import.meta.env` to resolve TypeScript errors when accessing Vite environment variables.
 declare global {
-    interface ImportMetaEnv {
-        readonly VITE_FIREBASE_API_KEY: string;
-        readonly VITE_FIREBASE_AUTH_DOMAIN: string;
-        readonly VITE_FIREBASE_PROJECT_ID: string;
-        readonly VITE_FIREBASE_STORAGE_BUCKET: string;
-        readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string;
-        readonly VITE_FIREBASE_APP_ID: string;
-        readonly VITE_FIREBASE_MEASUREMENT_ID: string;
-    }
+  interface ImportMetaEnv {
+    readonly VITE_FIREBASE_API_KEY: string;
+    readonly VITE_FIREBASE_AUTH_DOMAIN: string;
+    readonly VITE_FIREBASE_PROJECT_ID: string;
+    readonly VITE_FIREBASE_STORAGE_BUCKET: string;
+    readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string;
+    readonly VITE_FIREBASE_APP_ID: string;
+    readonly VITE_FIREBASE_MEASUREMENT_ID: string;
+  }
 
-    interface ImportMeta {
-        readonly env: ImportMetaEnv;
-    }
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
 
-    interface AIStudio {
-        hasSelectedApiKey: () => Promise<boolean>;
-        openSelectKey: () => Promise<void>;
-    }
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
 
-    interface Window {
-        aistudio?: AIStudio;
-        webkitAudioContext: typeof AudioContext;
-    }
+  interface Window {
+    aistudio?: AIStudio;
+    webkitAudioContext: typeof AudioContext;
+  }
 }

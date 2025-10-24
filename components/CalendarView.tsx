@@ -148,7 +148,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ calendarEvents, onEventSele
     }, [currentDate, view]);
     
     return (
-        <div className="animate-fade-in bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 h-full flex flex-col">
+        <div className="animate-fade-in bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 flex-1 flex flex-col">
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">{headerTitle}</h1>

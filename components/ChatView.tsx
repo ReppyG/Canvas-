@@ -176,7 +176,7 @@ const ChatView: React.FC = () => {
     }
 
     return (
-        <div className="flex h-full animate-fade-in bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <div className="flex flex-1 animate-fade-in bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
             <div className="w-full sm:w-1/3 md:w-1/4 h-full flex flex-col border-r border-gray-200 dark:border-gray-700">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <div className="text-sm p-3 rounded-md bg-gray-100 dark:bg-gray-700 text-center">
