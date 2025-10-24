@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateVideo, getVideosOperation } from '../services/geminiService';
 import { XIcon, SparklesIcon, VideoIcon, Loader2Icon, UploadIcon, ExclamationTriangleIcon } from './icons/Icons';
-import { Operation } from '@google/genai';
+// Note: Video generation API is not currently available in the SDK
 
 interface VideoGeneratorModalProps {
     onClose: () => void;
