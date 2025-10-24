@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Assignment, Course, AiTutorMessage } from '../types';
 import { SparklesIcon, DocumentTextIcon, BrainIcon, ImageIcon, MicIcon, VideoIcon, SendIcon, GlobeIcon, ExternalLinkIcon, XIcon, MessageCircleIcon, PaintBrushIcon, Wand2Icon, VolumeUpIcon, PhoneIcon, MapIcon } from './icons/Icons';
 import { generateNotesFromText, summarizeDocument, createGlobalAssistantChat, generateGroundedText } from '../services/geminiService';
+import type { ChatSession } from '@google/generative-ai';
 import ImageAnalyzerModal from './ImageAnalyzerModal';
 import AudioTranscriberModal from './AudioTranscriberModal';
 import VideoAnalyzerModal from './VideoAnalyzerModal';
@@ -49,15 +50,30 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ isOpen, onClose, co
         return JSON.stringify({ courses: courseSummary, assignments: assignmentSummary }, null, 2);
     }, [courses, assignments]);
 
-    const chat = useMemo(() => {
-        if (enableGrounding) return null;
-        try {
-            return createGlobalAssistantChat(context);
-        } catch (e) {
-            console.error(e);
-            setChatError('Failed to initialize AI Assistant. The Gemini API key may be missing or invalid.');
-            return null;
+    const [chat, setChat] = useState<ChatSession | null>(null);
+
+    useEffect(() => {
+        if (enableGrounding) {
+            setChat(null); // Use one-shot calls for grounding
+            return;
         }
+        let isMounted = true;
+        createGlobalAssistantChat(context)
+            .then((chatSession) => {
+                if (isMounted) {
+                    setChat(chatSession);
+                }
+            })
+            .catch((e) => {
+                console.error("Failed to create chat:", e);
+                if (isMounted) {
+                    setChat(null);
+                    setChatError('Failed to initialize AI Assistant. The Gemini API key may be missing or invalid.');
+                }
+            });
+        return () => {
+            isMounted = false;
+        };
     }, [context, enableGrounding]);
     
     useEffect(() => {
@@ -87,8 +103,9 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ isOpen, onClose, co
                 setMessages(prev => [...prev, modelResponse]);
             } else {
                 if (!chat) throw new Error("Chat is not initialized.");
-                const response = await chat.sendMessage({ message: currentInput });
-                const modelResponse: AiTutorMessage = { role: 'model', text: response.text };
+                const result = await chat.sendMessage(currentInput);
+                const response = await result.response;
+                const modelResponse: AiTutorMessage = { role: 'model', text: response.text() };
                 setMessages(prev => [...prev, modelResponse]);
             }
         } catch (error) {
