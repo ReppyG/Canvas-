@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { UserChatMessage, ConversationSummary } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { db } from '../services/firebaseService';
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, doc, addDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { UsersIcon, SendIcon, PlusIcon, ClipboardCopyIcon, CheckIcon } from './icons/Icons';
 // Fix: 'parseISO' is not exported from the root 'date-fns' module in this project's setup. Importing it directly from its path.
 import { format, formatRelative } from 'date-fns';
@@ -33,12 +32,10 @@ const ChatView: React.FC = () => {
         
         // ARCHITECTURAL FIX: Fetch only the 50 most recent conversations, sorted on the server.
         // This is a highly scalable approach that minimizes reads and improves performance.
-        const q = db.collection('chats')
-            .where('participants', 'array-contains', myId)
-            .orderBy('timestamp', 'desc')
-            .limit(50);
+        const chatsColRef = collection(db, 'chats');
+        const q = query(chatsColRef, where('participants', 'array-contains', myId), orderBy('timestamp', 'desc'), limit(50));
 
-        const unsubscribe = q.onSnapshot((querySnapshot) => {
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const convos: UserChatMessage[] = [];
             querySnapshot.forEach(doc => {
                 const data = doc.data();
@@ -47,7 +44,7 @@ const ChatView: React.FC = () => {
                     senderId: data.senderId,
                     recipientId: data.recipientId,
                     text: data.text,
-                    timestamp: (data.timestamp as firebase.firestore.Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                    timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
                 });
             });
             // No client-side sorting needed; Firestore handles it.
@@ -75,10 +72,10 @@ const ChatView: React.FC = () => {
             return;
         };
 
-        const messagesColRef = db.collection('chatMessages').doc(activeChatId).collection('messages');
-        const q = messagesColRef.orderBy('timestamp', 'asc');
+        const messagesColRef = collection(db, 'chatMessages', activeChatId, 'messages');
+        const q = query(messagesColRef, orderBy('timestamp', 'asc'));
 
-        const unsubscribe = q.onSnapshot((querySnapshot) => {
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const messages = querySnapshot.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -86,7 +83,7 @@ const ChatView: React.FC = () => {
                     senderId: data.senderId,
                     recipientId: data.recipientId,
                     text: data.text,
-                    timestamp: (data.timestamp as firebase.firestore.Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+                    timestamp: (data.timestamp as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
                 };
             });
             setActiveMessages(messages);
@@ -149,21 +146,21 @@ const ChatView: React.FC = () => {
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !activePeerId || !myId || !activeChatId) return;
 
-        const messagesColRef = db.collection('chatMessages').doc(activeChatId).collection('messages');
-        const chatDocRef = db.collection('chats').doc(activeChatId);
+        const messagesColRef = collection(db, 'chatMessages', activeChatId, 'messages');
+        const chatDocRef = doc(db, 'chats', activeChatId);
 
         const newMessagePayload = {
             senderId: myId,
             recipientId: activePeerId,
             text: messageInput.trim(),
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            timestamp: serverTimestamp(),
         };
 
         // Add to messages subcollection
-        await messagesColRef.add(newMessagePayload);
+        await addDoc(messagesColRef, newMessagePayload);
         
         // Update the top-level chat document for conversation list queries
-        await chatDocRef.set({
+        await setDoc(chatDocRef, {
             ...newMessagePayload,
             participants: [myId, activePeerId]
         });

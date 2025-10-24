@@ -1,6 +1,6 @@
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/firestore';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 // --- Firebase Configuration ---
 // This configuration now securely loads your credentials from Vercel's Environment Variables.
@@ -18,19 +18,14 @@ const firebaseConfig = {
 // --- Firebase Initialization ---
 // This ensures Firebase is initialized only once, preventing errors on hot reloads.
 let app;
-if (!firebase.apps.length) {
-  // Check if firebaseConfig has been filled out
-  if (!firebaseConfig.apiKey) {
+// Check if firebaseConfig has been filled out
+if (!firebaseConfig.apiKey) {
     console.error("Firebase config is missing. Please add your VITE_FIREBASE_* variables to your Vercel environment settings.");
-    // You might want to display an error to the user in the UI as well
-  } else {
-    app = firebase.initializeApp(firebaseConfig);
-  }
-} else {
-  app = firebase.app();
 }
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-export { app, auth, db };
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+export { auth, db };
