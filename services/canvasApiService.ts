@@ -82,49 +82,24 @@ export const getCourses = async (settings: Settings): Promise<Course[]> => {
         }));
 };
 
-const getAssignmentsForCourse = async (courseId: number, canvasUrl: string, apiToken: string): Promise<any[]> => {
-    // Fetches assignments for one specific course.
-    return fetchFromProxy(`courses/${courseId}/assignments?per_page=100&include[]=submission`, canvasUrl, apiToken);
-};
-
-// **ARCHITECTURAL FIX**: This function now depends on the pre-fetched course list.
-export const getAssignments = async (settings: Settings, courses: Course[]): Promise<Assignment[]> => {
+// **ARCHITECTURAL FIX**: This function is now decoupled from `getCourses` and uses a more efficient endpoint.
+export const getAssignments = async (settings: Settings): Promise<Assignment[]> => {
     const { apiToken } = settings;
     const canvasUrl = formatCanvasUrl(settings.canvasUrl);
-    if (!canvasUrl || !apiToken || courses.length === 0) return [];
+    if (!canvasUrl || !apiToken) return [];
     
-    const courseMap = new Map(courses.map(course => [course.id, course.name]));
+    // Use the more efficient endpoint to get all assignments for the user across all courses.
+    const allAssignmentsData: any[] = await fetchFromProxy(`users/self/assignments?per_page=100&include[]=submission`, canvasUrl, apiToken);
 
-    const assignmentPromises = courses.map(course => 
-        getAssignmentsForCourse(course.id, canvasUrl, apiToken)
-    );
-
-    // **CRITICAL FIX**: Use `Promise.allSettled` to prevent one failed request
-    // (e.g., from an old/inaccessible course) from killing the entire operation.
-    const results = await Promise.allSettled(assignmentPromises);
-    
-    const successfulAssignments: any[] = [];
-    results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-            // Add the assignments from the successful API call.
-            successfulAssignments.push(...result.value);
-        } else {
-            // Log the error for debugging but don't stop the application.
-            console.warn(`Could not fetch assignments for course ${courses[index].name} (ID: ${courses[index].id}). Reason:`, result.reason);
-        }
-    });
-
-    const allAssignments: Assignment[] = successfulAssignments
-        // **FIX**: The restrictive `a.due_at` filter was removed. Assignments without due dates are now correctly included.
-        .filter(a => a && a.name && courseMap.has(a.course_id))
+    const allAssignments: Assignment[] = allAssignmentsData
+        .filter(a => a && a.name && a.course_id) // Basic validation
         .map((a: any) => {
-            // **IMPROVEMENT**: More robust status detection.
             let status: AssignmentStatus = 'NOT_STARTED';
             if (a.submission) {
                 if (a.submission.workflow_state === 'graded' || a.submission.score !== null || a.submission.posted_at) {
                     status = 'COMPLETED';
                 } else if (a.submission.submitted_at) {
-                    status = 'IN_PROGRESS'; // Submitted but not graded.
+                    status = 'IN_PROGRESS';
                 }
             }
             
@@ -135,12 +110,12 @@ export const getAssignments = async (settings: Settings, courses: Course[]): Pro
                 due_at: a.due_at,
                 points_possible: a.points_possible,
                 course_id: a.course_id,
-                courseName: courseMap.get(a.course_id) || 'Unknown Course',
+                courseName: '', // This will be enriched later in the `useCanvasData` hook.
                 status: status,
             };
         });
     
-    // **FIX**: The sort algorithm is now robust and handles null due dates gracefully by pushing them to the end.
+    // The sort algorithm is now robust and handles null due dates gracefully by pushing them to the end.
     return allAssignments.sort((a, b) => {
         const dateA = a.due_at ? new Date(a.due_at).getTime() : Infinity;
         const dateB = b.due_at ? new Date(b.due_at).getTime() : Infinity;

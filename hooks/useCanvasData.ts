@@ -8,7 +8,7 @@ const CANVAS_ASSIGNMENT_IDS_KEY = 'canvasAiAssistantAssignmentIds';
 
 type CanvasService = {
     getCourses: (settings: Settings) => Promise<Course[]>;
-    getAssignments: (settings: Settings, courses: Course[]) => Promise<Assignment[]>; // <-- Updated signature
+    getAssignments: (settings: Settings) => Promise<Assignment[]>;
 }
 
 type MockCanvasService = {
@@ -42,16 +42,31 @@ export const useCanvasData = (settings: Settings | null, enabled: boolean) => {
           return;
       }
 
-      // **ARCHITECTURAL FIX**: Implement a clear, sequential data flow.
-      // 1. Fetch courses.
-      const coursesData = useSampleData 
-        ? await (mockService as MockCanvasService).getCourses() 
-        : await (apiService as Omit<CanvasService, 'getAssignments'>).getCourses(settings!);
+      let coursesData: Course[];
+      let assignmentsRaw: Assignment[];
 
-      // 2. Pass the fetched courses to getAssignments.
-      const assignmentsData = useSampleData 
-        ? await (mockService as MockCanvasService).getAssignments() 
-        : await (apiService as CanvasService).getAssignments(settings!, coursesData);
+      if (useSampleData) {
+          [coursesData, assignmentsRaw] = await Promise.all([
+              (mockService as MockCanvasService).getCourses(),
+              (mockService as MockCanvasService).getAssignments(),
+          ]);
+      } else {
+          // **ARCHITECTURAL FIX**: Fetch courses and assignments in parallel for efficiency.
+          [coursesData, assignmentsRaw] = await Promise.all([
+              (apiService as CanvasService).getCourses(settings!),
+              (apiService as CanvasService).getAssignments(settings!),
+          ]);
+      }
+      
+      const courseMap = new Map(coursesData.map(c => [c.id, c.name]));
+      
+      // **ENRICHMENT STEP**: Add course names to assignments and filter out any assignments for courses not in the user's active list.
+      const assignmentsData = assignmentsRaw
+        .filter(a => courseMap.has(a.course_id))
+        .map(a => ({
+            ...a,
+            courseName: courseMap.get(a.course_id) || 'Unknown Course',
+        }));
       
       if (!useSampleData && settings) {
           const newAssignmentIds = new Set(assignmentsData.map(a => a.id));
@@ -69,7 +84,6 @@ export const useCanvasData = (settings: Settings | null, enabled: boolean) => {
           }
       }
       
-      const courseMap = new Map(coursesData.map(c => [c.id, c.name]));
       const eventsData: CalendarEvent[] = assignmentsData
         .filter(a => a.due_at)
         .map(a => ({
