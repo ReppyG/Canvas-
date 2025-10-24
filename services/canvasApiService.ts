@@ -115,7 +115,8 @@ export const getAssignments = async (settings: Settings, courses: Course[]): Pro
     });
 
     const allAssignments: Assignment[] = successfulAssignments
-        .filter(a => a && a.due_at && a.name && courseMap.has(a.course_id))
+        // **FIX**: The restrictive `a.due_at` filter was removed. Assignments without due dates are now correctly included.
+        .filter(a => a && a.name && courseMap.has(a.course_id))
         .map((a: any) => {
             // **IMPROVEMENT**: More robust status detection.
             let status: AssignmentStatus = 'NOT_STARTED';
@@ -139,8 +140,13 @@ export const getAssignments = async (settings: Settings, courses: Course[]): Pro
             };
         });
     
-    // Sort by due date after all processing is complete.
-    return allAssignments.sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime());
+    // **FIX**: The sort algorithm is now robust and handles null due dates gracefully by pushing them to the end.
+    return allAssignments.sort((a, b) => {
+        const dateA = a.due_at ? new Date(a.due_at).getTime() : Infinity;
+        const dateB = b.due_at ? new Date(b.due_at).getTime() : Infinity;
+        if (dateA === Infinity && dateB === Infinity) return 0; // Keep original order if both have no date
+        return dateA - dateB;
+    });
 };
 
 

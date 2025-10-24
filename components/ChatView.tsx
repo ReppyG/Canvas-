@@ -31,10 +31,12 @@ const ChatView: React.FC = () => {
     useEffect(() => {
         if (!myId) return;
         
-        // This query fetches every conversation the user is in. Sorting is handled client-side
-        // to avoid the need for a composite index in Firestore, making it more robust.
+        // ARCHITECTURAL FIX: Fetch only the 50 most recent conversations, sorted on the server.
+        // This is a highly scalable approach that minimizes reads and improves performance.
         const q = db.collection('chats')
-            .where('participants', 'array-contains', myId);
+            .where('participants', 'array-contains', myId)
+            .orderBy('timestamp', 'desc')
+            .limit(50);
 
         const unsubscribe = q.onSnapshot((querySnapshot) => {
             const convos: UserChatMessage[] = [];
@@ -48,9 +50,19 @@ const ChatView: React.FC = () => {
                     timestamp: (data.timestamp as firebase.firestore.Timestamp)?.toDate().toISOString() || new Date().toISOString(),
                 });
             });
-            // Sort conversations by timestamp descending on the client
-            convos.sort((a, b) => parseISO(b.timestamp).getTime() - parseISO(a.timestamp).getTime());
+            // No client-side sorting needed; Firestore handles it.
             setAllConversations(convos);
+        },
+        (error) => {
+            console.error("Error fetching conversations:", error);
+            // Provide clear, actionable feedback to the developer if the required index is missing.
+            if (error.message.includes("indexes")) {
+                console.error(
+                    `%c[ACTION REQUIRED] Firestore Index Missing:%c To enable scalable chat, please create a composite index in your Firebase console for the 'chats' collection. The query requires an index on 'participants' (array-contains) and 'timestamp' (descending). Firebase usually provides a direct link to create this in the original error message in your browser's console.`,
+                    'font-weight: bold; color: #ff6f61; background: #282c34; padding: 4px; border-radius: 4px;',
+                    'color: #c5c8c6;'
+                );
+            }
         });
 
         return () => unsubscribe();

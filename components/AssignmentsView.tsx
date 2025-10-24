@@ -171,7 +171,7 @@ const AssignmentCard: React.FC<{
           <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-bold text-lg text-gray-900 dark:text-white">{assignment.name}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{course.course_code}: {format(new Date(assignment.due_at!), 'PPp')}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{course.course_code}: {assignment.due_at ? format(new Date(assignment.due_at), 'PPp') : 'No due date'}</p>
                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center h-5">
                   {(isEstimatingTime || estimatedTime) && <ClockIcon className="w-4 h-4 mr-1.5 flex-shrink-0" />}
                   {isEstimatingTime ? (
@@ -263,11 +263,11 @@ const AssignmentsView: React.FC<AssignmentsViewProps> = ({ courses, assignments,
     }, [initialCourseId, onNavigated]);
 
     const filteredAssignments = useMemo(() => {
-        const sorted = [...assignments].sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime());
+        // The assignments are now pre-sorted from the service
         if (selectedCourseId === 'all') {
-            return sorted;
+            return assignments;
         }
-        return sorted.filter(a => a.course_id.toString() === selectedCourseId);
+        return assignments.filter(a => a.course_id.toString() === selectedCourseId);
     }, [selectedCourseId, assignments]);
 
     const courseMap = useMemo(() => new Map(courses.map(c => [c.id, c])), [courses]);
